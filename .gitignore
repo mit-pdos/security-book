@@ -1,7 +1,16 @@
 /lecture-notes.pdf
 /build
-/chapters
 .DS_Store
+
+### Quarto ###
+/_book/
+/.quarto/
+/index_files/
+/site_libs/
+/Foundations-of-Computer-Security.tex
+/figs/src/*.aux
+/figs/src/*.log
+/figs/src/*.pdf
 
 
 
@@ -319,3 +328,5 @@ TSWLatexianTemp*
 *.glstex
 
 # End of https://www.toptal.com/developers/gitignore/api/latex
+
+**/*.quarto_ipynb

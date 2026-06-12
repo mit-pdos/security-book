@@ -1,0 +1,20 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{forest}
+\newcommand{\sk}{{\mathsf{sk}}}
+\newcommand{\vk}{\mathsf{vk}}
+\newcommand{\Sign}{\mathsf{Sign}}
+\begin{document}
+	\begin{forest}
+		[ {$\sk_\varepsilon, \sigma_\varepsilon = \Sign_0(\sk_\varepsilon, \vk_0 || \vk_1))$}
+			[ {$\sk_0, \sigma_0 = \Sign_0(\sk_0, \vk_{00} || \vk_{01})$ }
+				[ {$\sk_{00}, \sigma_{00}$ }
+                                  [ $\ldots$ $\ldots$ ] ]
+				[ {$\sk_{01}, \sigma_{01} = \Sign_0(\sk_{01}, \vk_{010} || \vk_{011})$} [ $\ldots$ $\ldots$  ] ]
+			]
+			[ {$\sk_1, \sigma_1$ }
+				[ {$\sk_{10}, \sigma_{10}$} [ $\ldots$ $\ldots$  ] ]
+				[ {$\sk_{11}, \sigma_{11}$} [ $\ldots$ $\ldots$  ] ]
+			]
+		]
+	\end{forest}
+\end{document}

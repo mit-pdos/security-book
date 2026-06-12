@@ -1,0 +1,54 @@
+::: {.content-visible when-format="html"}
+::: {.hidden}
+$$
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\G}{\mathbb{G}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Zq}{\Z_q}
+\newcommand{\zo}{\{0,1\}}
+\newcommand{\bin}{\zo}
+\newcommand{\zon}{\{0,1\}^n}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\B}{\mathcal{B}}
+\newcommand{\calA}{\mathcal{A}}
+\newcommand{\calB}{\mathcal{B}}
+\newcommand{\calC}{\mathcal{C}}
+\newcommand{\calD}{\mathcal{D}}
+\newcommand{\calK}{\mathcal{K}}
+\newcommand{\calM}{\mathcal{M}}
+\newcommand{\calT}{\mathcal{T}}
+\newcommand{\calX}{\mathcal{X}}
+\newcommand{\calY}{\mathcal{Y}}
+\newcommand{\xor}{\oplus}
+\newcommand{\cross}{\times}
+\newcommand{\deq}{\mathrel{\mathop:}=}
+\newcommand{\abs}[1]{\left| #1 \right|}
+\newcommand{\set}[1]{\left\{ #1 \right\}}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+\newcommand{\poly}{\operatorname{poly}}
+\newcommand{\negl}{\operatorname{negl}}
+\newcommand{\classP}{\mathsf{P}}
+\newcommand{\classNP}{\mathsf{NP}}
+\newcommand{\INDCPA}{\text{IND-CPA}}
+\newcommand{\Enc}{\mathsf{Enc}}
+\newcommand{\Dec}{\mathsf{Dec}}
+\newcommand{\Gen}{\mathsf{Gen}}
+\newcommand{\Derive}{\mathsf{Derive}}
+\newcommand{\Sign}{\mathsf{Sign}}
+\newcommand{\Ver}{\mathsf{Ver}}
+\newcommand{\MAC}{\mathsf{MAC}}
+\newcommand{\MACSign}{\mathsf{MAC.Sign}}
+\newcommand{\MACVerify}{\mathsf{MAC.Verify}}
+\newcommand{\Funs}{\mathsf{Funs}}
+\newcommand{\ToString}{\mathsf{ToString}}
+\newcommand{\sk}{\mathsf{sk}}
+\newcommand{\pk}{\mathsf{pk}}
+\newcommand{\vk}{\mathsf{vk}}
+\newcommand{\sig}{\sigma}
+\newcommand{\rgets}{\mathrel{\overset{\scriptscriptstyle\mathrm{R}}{\leftarrow}}}
+\newcommand{\getsr}{\rgets}
+$$
+:::
+:::

@@ -1,0 +1,8 @@
+% PDF-only macro definitions (not MathJax-compatible).
+% The HTML build uses the rewrites in macros-html-overrides.tex instead.
+%
+% "Sample at random" arrow: a left arrow with a small R above it.
+\newcommand{\rgetscmd}{\ooalign{$\leftarrow$\cr
+    \hidewidth\raisebox{1.2\height}{\scalebox{0.5}{\ \textrm{R}}}\hidewidth\cr}}
+\newcommand{\rgets}{\mathrel{\mathpalette\rgetscmd\relax}}
+\newcommand{\getsr}{\rgets}

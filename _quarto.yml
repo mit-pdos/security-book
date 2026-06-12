@@ -1,0 +1,74 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Foundations of Computer Security"
+  subtitle: "MIT 6.1600 Lecture Notes"
+  author: "6.1600 Course Staff"
+  chapters:
+    - index.qmd
+    - chapters/lec01.qmd
+    - part: "Authentication"
+      chapters:
+        - chapters/lec02.qmd
+        - chapters/lec03.qmd
+        - chapters/lec04.qmd
+        - chapters/lec05.qmd
+        - chapters/lec06.qmd
+        - chapters/lec07.qmd
+    - part: "Transport Security"
+      chapters:
+        - chapters/lec08.qmd
+        - chapters/lec09.qmd
+        - chapters/lec10.qmd
+        - chapters/lec11.qmd
+        - chapters/lec12.qmd
+    - part: "Platform Security"
+      chapters:
+        - chapters/lec14.qmd
+        - chapters/lec15.qmd
+        - chapters/lec16.qmd
+        - chapters/lec17.qmd
+        - chapters/lec18.qmd
+    - part: "Software Security"
+      chapters:
+        - chapters/lec19.qmd
+        - chapters/lec20.qmd
+        - chapters/lec21.qmd
+        - chapters/lec22.qmd
+    - part: "Privacy"
+      chapters:
+        - chapters/lec24.qmd
+        - chapters/lec25.qmd
+    - part: "Conclusions"
+      chapters:
+        - chapters/lec27.qmd
+    - references.qmd
+  appendices:
+    - chapters/lec06-app.qmd
+  sidebar:
+    style: docked
+    search: true
+
+bibliography: ref.bib
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    html-math-method: mathjax
+    reference-location: margin
+  pdf:
+    documentclass: scrbook
+    pdf-engine: xelatex
+    include-in-header:
+      - macros/macros-common.tex
+      - macros/macros-pdf-extra.tex
+    keep-tex: true
+    link-citations: true
+    geometry:
+      - left=1in
+      - textwidth=4.4in
+      - marginparwidth=2.0in
+      - marginparsep=0.3in
