@@ -178,6 +178,16 @@ main.content {
   }
 }
 
+// Section numbers: cosmo renders them in a washed-out gray that looks like an
+// unstyled default. Unify them with the heading — same color and weight — so
+// "3.1 Intuition" reads as one typeset unit, the way a printed textbook sets
+// section heads. (For a subtle accent instead, swap `inherit` for `$burgundy`.)
+.header-section-number {
+  color: inherit;
+  font-weight: inherit;
+  margin-right: 0.4em;
+}
+
 // Inline and display math: ensure MathJax inherits the body font-size exactly
 // (1em) so the Computer Modern math is scaled to match the surrounding text.
 mjx-container {

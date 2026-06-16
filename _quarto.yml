@@ -46,6 +46,7 @@ book:
     - references.qmd
   appendices:
     - chapters/lec06-app.qmd
+  bread-crumbs: false
   sidebar:
     style: docked
     search: true
