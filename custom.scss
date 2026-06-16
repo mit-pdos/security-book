@@ -1,0 +1,269 @@
+/*-- scss:defaults --*/
+
+// Typography for the HTML edition: Bitstream Charter — Matthew Carter's classic
+// academic serif — for the body text (sized so the inline MathJax / Computer
+// Modern lines up with it), and Inter for the headings and navigation chrome.
+
+// Suppress cosmo's Google Fonts import of Source Sans Pro — we embed our own
+// fonts, so the book has no external font dependencies.
+$web-font-path: false !default;
+
+$font-family-charter: "Charter", "Bitstream Charter", Georgia, "Times New Roman", serif !default;
+$font-family-inter: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" !default;
+
+// Body reads in Charter; headings and UI chrome (sans usage) read in Inter.
+$font-family-base: $font-family-charter !default;
+$font-family-sans-serif: $font-family-inter !default;
+$headings-font-family: $font-family-inter !default;
+
+// Base reading size. 17px keeps a book-like density while still letting the
+// inline MathJax (which inherits the surrounding font-size) line up with text.
+$font-size-root: 17px !default;
+$line-height-base: 1.6 !default;
+
+// Slightly heavier headings, tightened tracking.
+$headings-font-weight: 600 !default;
+$headings-line-height: 1.25 !default;
+
+// Accent palette: Oxford burgundy in place of cosmo's bright blue. Drives
+// links, the active sidebar chapter, and the rule on definition/theorem blocks.
+$burgundy: #8a2b3a !default;
+$burgundy-dark: #6b1f2c !default;
+$primary: $burgundy !default;
+$link-color: $burgundy !default;
+$link-hover-color: $burgundy-dark !default;
+
+/*-- scss:rules --*/
+
+// Bitstream Charter web fonts (freely redistributable release), embedded as
+// static files in this repo under fonts/. Quarto resolves these url() paths
+// relative to this SCSS file, copies the fonts next to the compiled theme CSS,
+// and the same relative path resolves at runtime — no network request.
+@font-face {
+  font-family: "Charter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/charter_regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Charter";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/charter_italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Charter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/charter_bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Charter";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/charter_bold_italic.woff2") format("woff2");
+}
+
+// Inter (variable, weights 100–900) for headings and navigation, embedded the
+// same way as Charter — copied next to the compiled theme CSS, no network call.
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/inter-variable.woff2") format("woff2");
+}
+
+// The page TOC shares the right margin column with the reference notes (which
+// Quarto stacks at z-index 998). The sidebar carries .zindex-bottom (z-index:-1),
+// which makes it a stacking context pinned behind the notes — so raising the
+// inner <nav>'s z-index alone does nothing. Lift the sidebar's whole context
+// above the notes instead, but keep it transparent and click-through; only the
+// TOC box gets an opaque white background, so it occludes notes that overlap it
+// near the top while notes lower down remain visible and interactive.
+#quarto-margin-sidebar {
+  z-index: 999 !important;
+  pointer-events: none;
+}
+#quarto-margin-sidebar #TOC {
+  pointer-events: auto;
+  background-color: #f8f8f7;
+  border: 1px solid #e3e1dc;
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+}
+
+// Navigation chrome (sidebar, navbar, the page TOC) in Inter.
+.navbar,
+.sidebar,
+#quarto-sidebar,
+.sidebar-navigation,
+.sidebar-title,
+.quarto-secondary-nav,
+nav[role="doc-toc"],
+#TOC,
+.toc-actions,
+.nav-footer {
+  font-family: $font-family-inter;
+}
+
+// Cover image: a full-width banner above the title on the home page, with a
+// tiny gray credit line tucked immediately beneath it.
+img.cover-banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 0.35rem;
+  border-radius: 4px;
+}
+.cover-credit {
+  margin: 0 0 1.75rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: #888;
+  text-align: right;
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}
+
+// Keep the author list on a single line instead of wrapping in the narrow
+// body column.
+.quarto-title-meta {
+  display: block;
+}
+.quarto-title-meta-contents p {
+  white-space: nowrap;
+}
+// Drop the "AUTHOR" label above the author names.
+.quarto-title-meta-heading {
+  display: none;
+}
+
+// Tighten the cap on heading sizes so they feel like a textbook, not a webpage.
+// Cosmo's default scale runs large; rein it in for a calmer hierarchy.
+h1.title {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+h2,
+h3,
+h4 {
+  letter-spacing: -0.01em;
+}
+
+main.content {
+  h1, h1.title { font-size: 1.9rem; }
+  h2 { font-size: 1.45rem; }
+  h3 { font-size: 1.2rem; }
+  h4 { font-size: 1.05rem; }
+
+  // Give section headings a little more breathing room above them.
+  h2 { margin-top: 2.2rem; }
+  h3 { margin-top: 1.6rem; }
+
+  // Drop cosmo's full-width gray rule under every section header — the
+  // numbering and whitespace already mark the breaks, and the rule reads as
+  // generic-webpage chrome against the textbook layout.
+  h2 {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+// Inline and display math: ensure MathJax inherits the body font-size exactly
+// (1em) so the Computer Modern math is scaled to match the surrounding text.
+mjx-container {
+  font-size: inherit !important;
+}
+mjx-container[display="true"] {
+  margin: 1.1em 0;
+}
+
+// Code stays monospace, but knock the size down a touch so it doesn't tower
+// over the body text.
+code,
+pre,
+kbd,
+.sourceCode {
+  font-size: 0.9em;
+}
+
+// Refined links: subtle underline.
+main.content a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.12em;
+}
+
+// Blockquotes as quiet, indented asides.
+blockquote {
+  border-left: 3px solid #d0d0d0;
+  color: #444;
+  font-style: italic;
+}
+
+// Definition / theorem / lemma blocks. By default Quarto renders these as a
+// bare bold run-in with no visual separation. Lift them onto a quiet card with
+// a burgundy left rule so the reader can spot a formal statement at a glance.
+// `.security-goal` is an informal, unnumbered companion to a formal definition
+// and shares the same card so the two read as a matched pair.
+.theorem,
+.lemma,
+.corollary,
+.proposition,
+.security-goal {
+  margin: 1.5rem 0;
+  padding: 0.75rem 1.1rem;
+  background-color: #faf7f5;
+  border-left: 3px solid $burgundy;
+  border-radius: 0 4px 4px 0;
+
+  > p:last-child { margin-bottom: 0; }
+}
+
+// The "Definition 3.1 (…)" run-in title, set in Inter so it reads as a label.
+// The security-goal block has no Quarto-generated title, so we promote its
+// leading bold run-in ("**Security goal.**") to the same label treatment.
+.theorem-title,
+.security-goal > p:first-child > strong:first-child {
+  font-family: $font-family-inter;
+  font-weight: 600;
+  color: $burgundy-dark;
+}
+
+// Proofs: a quiet run-in, closed with a tombstone (∎) so the end is unambiguous.
+.proof {
+  margin: 1.25rem 0;
+  color: #2c2c2c;
+
+  .proof-title { font-style: italic; }
+
+  > p:last-child::after {
+    content: "\220E";
+    float: right;
+    margin-left: 0.5rem;
+  }
+}
+
+// Margin notes are the dominant marginal element here (100+ of them). Set them
+// quieter than the body: smaller, gray, sans-serif, so they read as marginalia
+// rather than competing with the main column. This also covers the citation
+// notes that `reference-location: margin` drops into the same column.
+.column-margin {
+  font-family: $font-family-inter;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #5c5c5c;
+}
+
+// Quarto callouts (callout-note): soften the default heavy chrome to match.
+.callout.callout-note {
+  border-left-color: $burgundy;
+}

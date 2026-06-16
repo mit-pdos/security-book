@@ -4,8 +4,7 @@ project:
 
 book:
   title: "Foundations of Computer Security"
-  subtitle: "MIT 6.1600 Lecture Notes"
-  author: "6.1600 Course Staff"
+  author: "Henry Corrigan-Gibbs, Srini Devadas, Yael Kalai, Nickolai Zeldovich"
   chapters:
     - index.qmd
     - chapters/lec01.qmd
@@ -53,10 +52,18 @@ book:
 
 bibliography: ref.bib
 
+# Number chapters and sections only (3, 3.1); leave subsections (###) and below
+# unnumbered. Cross-references to unnumbered sections render as title links.
+number-depth: 2
+
 format:
   html:
-    theme: cosmo
+    theme:
+      - cosmo
+      - custom.scss
     toc: true
+    toc-location: right
+    toc-title: "Chapter contents"
     html-math-method: mathjax
     reference-location: margin
   pdf:
