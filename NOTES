@@ -3,4 +3,38 @@
 * Move privilege separation into platform
 * What AI topics to cover?
 
+== Things to add ==
+* Intro 
+  - Rename: Assumptions, Security goal, Mechanisms
+    -> Make sure that these get threaded through the rest of the text
+  - Threat model = assumptions + security goal
+  - Point out that this is most useful/fruitful for components
+  - Put a nice table in the intro with the assumption, goal, mechanism for each chapter.
 
+* Software supply chain
+  - CI infrastructure (Github actions)
+  - In conjunction with social engineering
+* AI
+  - Platform security: Agents and how they integrate into system
+  - Software security: Adversarial examples, prompt injection
+* Humans with computers
+  - Phishing
+  - Privacy (telemetry, DP, etc.)
+  - Model training 
+* Architecture
+  - Denial of service
+  - Availability
+* Defining isolation (14.1)
+  - Explain why the weak definitions are useful
+* Go back and read Ross Anderson's book
+* Economics
+
+== Things to change ==
+* Replace DH syntax with KEM syntax
+  - Give DH as an example
+  - Give lattice-based KEM
+
+== Things to remove ==
+* ZK proofs
+* Differential privacy
+  
