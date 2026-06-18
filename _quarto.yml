@@ -3,7 +3,7 @@ project:
   output-dir: _book
 
 book:
-  title: "Foundations of Computer Security"
+  title: "A Constructive Approach to Computer Security"
   author: "Henry Corrigan-Gibbs, Srini Devadas, Yael Kalai, Nickolai Zeldovich"
   chapters:
     - index.qmd
