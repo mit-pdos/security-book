@@ -3,7 +3,7 @@ project:
   output-dir: _book
 
 book:
-  title: "A Constructive Approach to Computer Security"
+  title: "The Structure of Secure Systems"
   author: "Henry Corrigan-Gibbs, Srini Devadas, Yael Kalai, Nickolai Zeldovich"
   chapters:
     - index.qmd
