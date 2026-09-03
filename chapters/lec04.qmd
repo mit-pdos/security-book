@@ -399,7 +399,7 @@ $\MACSign(k, m \in \Z^{\leq L}_p) \to t$.
   :::
 
   [**TODO (HCG):** Check the definition of the message polynomial $M$. Should
-  there be an additional $v^{t+1}$ monomial?]{.todo}
+  there be an additional $v^{t+1}$ monomial?]{.todo .content-visible when-profile="draft"}
 - Sample a nonce $r \getsr \Z_p$.
 - Output $t \gets \big(r, F(k, r) + M(v)\big) \in \Z^2_p$ as the MAC tag.
 

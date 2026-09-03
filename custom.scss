@@ -33,6 +33,12 @@ $primary: $burgundy !default;
 $link-color: $burgundy !default;
 $link-hover-color: $burgundy-dark !default;
 
+// Draft TODO notes. Deliberately outside the burgundy accent family: these are
+// scaffolding, not content, and should never be mistaken for a link or a
+// theorem rule. They render only in the draft profile (see the .todo rule).
+$todo-color: #b35a00 !default;
+$todo-bg: #fff4e0 !default;
+
 /*-- scss:rules --*/
 
 // Bitstream Charter web fonts (freely redistributable release), embedded as
@@ -276,4 +282,22 @@ blockquote {
 // Quarto callouts (callout-note): soften the default heavy chrome to match.
 .callout.callout-note {
   border-left-color: $burgundy;
+}
+
+// Draft-only TODO notes, written as
+//   [**TODO (HCG):** ...]{.todo .content-visible when-profile="draft"}
+// The when-profile class strips them from any build that isn't the draft
+// profile, so this styling only ever applies locally (`make`), never on the
+// GitHub Pages build. See macros/macros-pdf-extra.tex for the PDF equivalent.
+.todo {
+  display: inline-block;
+  font-family: $font-family-inter;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: $todo-color;
+  background-color: $todo-bg;
+  border-left: 3px solid $todo-color;
+  border-radius: 3px;
+  padding: 0.35em 0.6em;
+  margin: 0.2em 0;
 }

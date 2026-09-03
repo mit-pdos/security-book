@@ -325,4 +325,4 @@ the origin server, along with the additional hashes
 from the mirror server, to be convinced that the mirrored
 file it downloaded was authentic.
 
-**TODO:** Add diagram from lecture.
+[**TODO:** Add diagram from lecture.]{.todo .content-visible when-profile="draft"}

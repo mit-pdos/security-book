@@ -51,6 +51,11 @@ book:
     style: docked
     search: true
 
+# Colours draft TODO notes in the PDF build; a no-op for HTML, which styles
+# them via .todo in custom.scss.
+filters:
+  - scripts/todo-latex.lua
+
 bibliography: ref.bib
 
 # Number chapters and sections only (3, 3.1); leave subsections (###) and below

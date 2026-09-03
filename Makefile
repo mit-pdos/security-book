@@ -1,4 +1,10 @@
 QUARTO ?= quarto
+
+# Local builds render draft TODO notes; the GitHub Pages workflow doesn't run
+# make, so it never sets a profile and the notes are stripped from what ships.
+# Use `make final` to reproduce the published build locally.
+QUARTO_PROFILE ?= draft
+export QUARTO_PROFILE
 OUTPUT_DIR := _book
 
 # Inputs to watch for changes.
@@ -11,7 +17,7 @@ POLL ?= 1
 STAT := $(shell if stat -f '%m' Makefile >/dev/null 2>&1; \
 	then echo 'stat -f "%m %N"'; else echo 'stat -c "%Y %n"'; fi)
 
-.PHONY: all html pdf preview watch clean
+.PHONY: all html pdf preview watch final clean
 
 all: html pdf
 
@@ -39,6 +45,12 @@ watch:
 		fi; \
 		sleep $(POLL); \
 	done
+
+# Reproduce the published build locally, with draft TODO notes stripped.
+# Setting QUARTO_PROFILE to the empty string does NOT work -- quarto keeps the
+# profile active and the notes survive -- so the variable has to be unset.
+final:
+	env -u QUARTO_PROFILE $(QUARTO) render --to html
 
 clean:
 	rm -rf $(OUTPUT_DIR) .quarto

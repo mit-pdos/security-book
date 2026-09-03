@@ -68,7 +68,7 @@ literature usually refers to the secret value $x$ as the *witness*.
   is honest, then no matter how the verifier misbehaves,
   it should learn nothing about the prover's secret witness $x$.
 
-[**TODO (HCG):** Insert formal definitions here?]{.todo}
+[**TODO (HCG):** Insert formal definitions here?]{.todo .content-visible when-profile="draft"}
 
 One important question here is: How do we define the notion of knowledge?
 That is, what does it mean for the prover to really "know" $x$?

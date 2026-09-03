@@ -294,6 +294,9 @@ decisions about which defenses to deploy.
 We give a handful of examples of security failures arising from poor
 choices of security goals or threat model.
 
+[**TODO (HCG):** Revise the following text.]{.todo .content-visible when-profile="draft"}
+
+
 ### Insufficient Attack Models
 
 **CAPTCHA.**

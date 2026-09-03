@@ -6,3 +6,9 @@
     \hidewidth\raisebox{1.2\height}{\scalebox{0.5}{\ \textrm{R}}}\hidewidth\cr}}
 \newcommand{\rgets}{\mathrel{\mathpalette\rgetscmd\relax}}
 \newcommand{\getsr}{\rgets}
+
+% Draft TODO notes. The Lua filter in scripts/todo-latex.lua wraps every
+% .todo span in \todobox; xcolor is already loaded by the pandoc template.
+% Notes reach the PDF only under the draft profile, so this never ships.
+\definecolor{todocolor}{HTML}{B35A00}
+\newcommand{\todobox}[1]{{\color{todocolor}#1}}

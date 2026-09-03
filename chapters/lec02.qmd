@@ -37,7 +37,8 @@ and server---two machines communicating over a network.
 ::: {.column-margin}
 Another
 common scenario has a human being authenticating to a computer: think about
-typing a PIN into a phone or a password into a computer terminal. We will
+typing a PIN into a phone or a password into a computer terminal
+or bank ATM machine. We will
 discuss this setting more when we come to passwords.
 :::
 
@@ -47,38 +48,57 @@ To precisely define the security goal of an authentication
 system though, we have to specify the attacker's power:
 against which types of attack are we trying to defend?
 
-![There are (at least) three interesting security goals for client-server authentication systems: (a) direct attack, (b) eavesdropping attack, and (c) active attack.](/figs/auth-attacks.svg){#fig-auth-attacks width=90%}
+![Three common security goals for client-server authentication systems: (a) direct attack, (b) eavesdropping attack, and (c) active attack.](/figs/auth-attacks.svg){#fig-auth-attacks width=90%}
 
 @fig-auth-attacks sketches three types of attacks
 on authentication systems. In more detail these
 are, in increasing order of strength are:
 
 - *Direct attack.*
-  The attacker never sees the target user authenticate and then tries
-  to impersonate the honest user.
-  PIN-based authentication systems, e.g., on your phone or on an ATM
-  machine, often aim to defend only against direct attacks.
-  The screen-lock password that protects your laptop is also an authentication system
-  that just attempts to protect against direct attack.
+  The attacker tries to impersonate the honest user, even though
+  the attacker has never seen the target user authenticate.
+  PIN-based and password-based authentication systems
+  typically aim to defend only against direct attacks.
+  For example, if your phone has a screen-lock PIN, it defends against
+  an attacker that finds your phone on the street
+  and tries to unlock it by guessing your PIN.
 
-  That is,
-  these systems do not protect against an attacker that can look over your
+  At the same time, PIN-based authentication
+  systems do _not_ protect against an attacker that can look over your
   shoulder while you are typing your password. These systems only aim to provide
   security when the attacker *never* sees you (the honest user) authenticate.
 
 - *Eavesdropping attack.*
-  The attacker observes an honest user authenticating many times---i.e.,
-  the attacker sees all of the traffic between the client and server---and then
-  tries to impersonate that user.
+  A stronger security goal for authentication
+  systems is to defend against _eavesdropping
+  attacks_.
+  Here, the attacker observes an honest user authenticating many times
+  and then tries to impersonate that user.
+  For example, an attacker looks over the shoulder
+  of an honest user authenticating many times, and
+  then tries to impersonate the honest user.
+  Or, an attacker sees all of the traffic between the client and server,
+  and then tries to impersonate the client.
+
   One-time passwords, such as the six-digit authentication
   codes that the Google Authenticator app uses, aim to protect against
   eavesdropping attacks: an attacker who sees one of your one-time passwords
   will not be able to use it to authenticate as you; it is a *one-time* password.
 
 - *Active attack.*
-  The attacker that compromises the server, interacts with the honest user,
-  and after the server is restored to a good state, tries to authenticate
+  The strongest security goal that we will
+  consider is security against an _active attack_.
+  Here, we envision an attacker that compromises the server, 
+  then interacts many times with the honest user,
+  and finally—after the server is restored to a good state—tries to authenticate
   as the honest user (*active attack*).
+
+  Servers on the web are often designed to protect
+  against active attacks: even if an attacker can
+  break into one of Google's front-end web
+  servers interacts with authenticating clients, the 
+  attacker should not be able to authenticate as
+  those clients to other Google services 
 
   U2F security keys, and other schemes based on digital
   signatures (@sec-sig), aim to protect against active attacks.
@@ -90,6 +110,11 @@ Systems that defend against eavesdropping also defend against direct
 attacks.
 Systems that defend against direct attacks are the weakest---they do not necessarily
 provide any protection against the other types of attack.
+
+In the remainder of this chapter, we will consider
+three increasingly strong types of authentication,
+that provide these three increasingly strong
+security properties.
 
 ## Protecting against direct attacks: Bearer tokens, PINs, and passwords
 
@@ -111,15 +136,15 @@ schemes is that they are simple and easy to implement.
 In addition, a human can play the role of the client
 in a password-based authentication system (e.g., as you do
 when you type a PIN into your phone).
-Fancier authentication systems require the client to compute
-non-trivial cryptographic functions---not functions that normal
-humans can compute in their brains.
+Fancier authentication systems require the client to run 
+complex cryptographic algorithms, which are too
+difficult for most humans to compute in their brains.
 
-Bearer-token-based schemes do provide security against direct attacks:
-if an attacker has never seen the user authenticate, the
-attacker's best strategy is to just guess the user's password.
+Bearer-token-based schemes _do_ provide security against direct attacks:
+if a direct attacker has never seen the client authenticate, the
+attacker's best strategy is to just guess the client's password.
 Thus, the security of these schemes against direct attacks depends
-entirely on the adversary's uncertainty about the password.
+entirely on the adversary's uncertainty about the client's password.
 
 In some bearer-token-based systems, the server can assign
 a random password to each user. For example, when you create
@@ -129,44 +154,17 @@ You will have to include this secret key with each API request.
 Modern APIs use the stronger authentication mechanisms we describe
 later in this chapter.
 
+### What makes a good password?
+
 In the vast majority of password- and PIN-based login systems,
 the user may choose their own password.
 This creates all sorts of headaches...
 
-### What makes a good password?
-
 ![The most common passwords, according to NordPass (<https://nordpass.com/most-common-passwords-list/>), sorted by their frequency descending. A small number of common passwords dominate.](/figs/password-dist.svg){width=100%}
 
-::: {.column-margin}
-| Rank | Password |
-|:----:|:--------:|
-| 1 | `123456` |
-| 2 | `123456789` |
-| 3 | 12345 |
-| 4 | qwerty |
-| 5 | password |
-| 6 | 12345678 |
-| 7 | 111111 |
-| 8 | 123123 |
-| 9 | 1234567890 |
-| 10 | 1234567 |
-| 11 | qwerty123 |
-| 12 | 000000 |
-| 13 | 1q2w3e |
-| 14 | aa12345678 |
-| 15 | abc123 |
-| 16 | password1 |
-| 17 | 1234 |
-| 18 | qwertyuiop |
-| 19 | 123321 |
-| 20 | password123 |
-
-: The most popular passwords in 2021, according to NordPass, <https://nordpass.com/most-common-passwords-list/>.
-:::
-
 The security of a password-based authentication system
-rests entirely on the attacker's inability to guess the password
-in a small number of guesses.
+rests entirely on the attacker's inability to guess the client's 
+password in a small number of guesses.
 
 *Entropy* is a way to quantify an adversary's
 uncertainty about a value sampled using a random
@@ -176,6 +174,14 @@ it will take at least roughly $2^b$ guesses
 for an attacker to correctly
 guess a value sampled from this distribution.
 
+::: {.column-margin}
+There are many definitions of entropy, which are
+all slightly different from each other. We are
+being very informal here, so we will call them
+all _entropy_ and not worry about the fine
+distinctions between the different notions.
+:::
+
 The uniform distribution over 128-bit strings has 128 bits of entropy.
 The distribution from which humans typically choose their passwords
 has much less entropy---empirically, more like 20 bits.
@@ -183,19 +189,22 @@ has much less entropy---empirically, more like 20 bits.
 Ideally, we would want all passwords to be equally as likely,
 from the adversary's perspective.
 (These would be "high-entropy" passwords.)
-If a system generated a truly random password for each user,
-each password would be indeed equally likely.
+If a system generated a truly random $b$-bit password for each user,
+each password would be indeed equally likely and
+it would take the attacker roughly $2^b$ time to
+guess the user's password.
 But then it becomes very difficult for a user to remember their
-password, much less many random passwords for many different services.
+password.
 
+**Common passwords are easy to guess.**
 Typically, people have to remember their passwords,
 so we let them pick their own passwords.
 When they do,
 it turns out that many people are likely to choose
 the same password.
 
-A typical password might be sampled from a distribution with roughly
-20 bits of
+A typical human might sample their password
+from a distribution with roughly 20 bits of
 entropy---if an adversary is able to make $2^{20}$ guesses
 at the password, they can expect to guess the password correctly.
 One can computer easily make $2^{20}$
@@ -208,13 +217,15 @@ minutes.
 must contend with the fact that most passwords are not that difficult
 for an attacker to guess.
 
-In this section, we describe some mitigation strategies: all are flawed,
-but each is better than nothing. The goal of each is to make the attacker's
+In this section, we describe some common ways to 
+mitigate the fact that users pick weak passwords. 
+Each of these mitigations is flawed,
+but each is better than nothing. Each makes the attacker's
 job slightly more difficult; by stacking a few of these defenses on top
 of each other, we can substantially strengthen the end-to-end system.
 
 **Aggressively limit the number of guesses.**
-Therefore, when using passwords as an authentication
+When using passwords as an authentication
 mechanism, an authentication system must *always*
 somehow limit the number of password guesses.
 
@@ -266,7 +277,8 @@ When using passwords to authenticate to a website,
 a user can install a password manager on their
 computer that will generate random passwords for them.
 Since the user doesn't need to remember these passwords,
-they can be sampled truly at random from a high-entropy distribution.
+the password manager can sample these
+passwords truly at random from a high-entropy distribution.
 Once the user authenticates to their computer (using a password, typically),
 they can then access their randomly generated passwords and
 use them to log in to their websites.
@@ -301,7 +313,7 @@ It is not clear that the cost of requiring frequent password changes is
 worth the benefit.
 :::
 
-Since, as we have seen, passwords are easy to guess, avoiding
+Since common passwords are easy to guess, avoiding
 password-based authentication entirely is the safest option where
 possible.
 When a system must use passwords for authentication, the safest
