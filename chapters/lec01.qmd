@@ -296,7 +296,7 @@ choices of security goals or threat model.
 
 ### Insufficient Attack Models
 
-**Assuming specific strategy: CAPTCHA.**
+**CAPTCHA.**
 CAPTCHAs were designed to be expensive to
 solve via automation, but easy for a human to read.
 Indeed it might be expensive to build an optical-character recognition
@@ -311,15 +311,17 @@ The cost of solving a CAPTCHA is still non-zero,
 but the cost is much lower than the system designers
 may have intended.
 
-**Assuming low limit on computational power: DES.**
+**DES.**
 There used to be an encryption standard called DES that had $2^{56}$ possible keys.
-At the time that it was designed, the U.S. government standards agencies asserted that it was
-secure against even powerful attackers,
+At the time that it was designed, the U.S. government standards agencies asserted 
+that DES was secure against even powerful attackers,
 but today a modern computer can try all $2^{56}$ keys at only modest cost.
-(Academic researchers even at the time of DES's
+For what it's worth, academic researchers even at the time of DES's
 design understood that 56-bit keys were not large
 enough to prevent exhaustive
-cryptanalysis. [@DH77])
+cryptanalysis [@DH77].
+Because of the weakness of DES against modern computers,
+everyone using the standard had to upgrade their block ciphers.
 
 ::: {.column-margin}
 For
@@ -327,12 +329,7 @@ example, <https://crack.sh/> uses an array of FPGAs to provide a service that
 exhaustively checks all possible keys.
 :::
 
-Because of the weakness of DES against modern computers,
-everyone using the standard had to upgrade their block ciphers.
-For example, MIT had to switch from using DES for authentication
-to newer block ciphers with longer keys, such as AES.
-
-**Assuming a secure out-of-band channel: Two-factor authentication (2FA) via SMS.**
+**Model capturing a secure out-of-band channel: Two-factor authentication (2FA) via SMS.**
 Many 2FA systems use a text message for authentication, but an attacker then
 just needs to convince the clerk at the AT&T store to give them a new SIM card for your phone number.
 
