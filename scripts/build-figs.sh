@@ -3,38 +3,48 @@
 #  - Compiles the standalone TikZ/forest sources in figs/src/ to PDF.
 #  - Converts every source PDF (hand-drawn or TikZ-derived) to SVG in figs/.
 # Idempotent: safe to re-run.
-#
-# Conversion goes through Inkscape rather than `pdftocairo -svg`. pdftocairo
-# encodes PDF transparency groups as SVG `feImage` filters that reference
-# internal elements. Chrome tolerates those; WebKit (Safari, Preview,
-# QuickLook) does not, and silently drops the affected artwork -- whole shapes
-# and labels vanish from the figure. Inkscape emits plain paths with
-# fill-opacity instead, which every renderer handles.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-command -v inkscape >/dev/null || {
-  echo "error: inkscape not found (brew install --cask inkscape)" >&2
-  exit 1
-}
-
-# PDF -> SVG, refusing to emit a file that would render wrongly for a reader.
+# PDF -> SVG.
 #
-# --export-text-to-path is required, not cosmetic: Inkscape otherwise imports
-# the TikZ figures' labels as live <text> in Computer Modern (CMR10, CMMI10,
-# ...), fonts no reader has and that the SVG does not embed, so the labels
-# render in a fallback face or not at all.
+# Neither available converter is right for every figure, so pick per figure:
+#
+#   pdftocairo renders embedded fonts faithfully as paths, which the TikZ
+#   figures need -- their labels are Computer Modern math. But it encodes PDF
+#   transparency groups as SVG `feImage` filters referencing internal elements.
+#   Chrome tolerates those; WebKit (Safari, Preview, QuickLook) does not, and
+#   silently drops the affected artwork -- whole shapes and labels vanish.
+#
+#   Inkscape has no such transparency problem, but it substitutes a fallback
+#   face for fonts it cannot resolve from the PDF, so Computer Modern math
+#   comes out upright sans-serif.
+#
+# So: convert with pdftocairo, and fall back to Inkscape only for the figures
+# whose transparency it mishandles. That is the hand-drawn set, which is pure
+# paths with no text, so Inkscape's font weakness cannot bite. A figure needing
+# both is not something either tool handles -- fail loudly rather than ship it.
 pdf_to_svg() {
   local src="$1" out="$2"
-  inkscape "$src" --export-type=svg --export-plain-svg --export-text-to-path \
+
+  pdftocairo -svg "$src" "$out"
+  grep -q 'feImage' "$out" || return 0
+
+  command -v inkscape >/dev/null || {
+    echo "error: $src needs inkscape (brew install --cask inkscape)" >&2
+    exit 1
+  }
+  inkscape "$src" --export-type=svg --export-plain-svg \
     --export-filename="$out" >/dev/null
+
   if grep -q 'feImage' "$out"; then
-    echo "error: $out contains feImage filters; it will not render in WebKit" >&2
+    echo "error: $out still has feImage filters; it will not render in WebKit" >&2
     exit 1
   fi
   if grep -q '<text' "$out"; then
-    echo "error: $out contains live <text>; labels need embedded fonts" >&2
+    echo "error: $out mixes transparency with text; inkscape will have" >&2
+    echo "       substituted fonts for its labels. Convert it by hand." >&2
     exit 1
   fi
 }
