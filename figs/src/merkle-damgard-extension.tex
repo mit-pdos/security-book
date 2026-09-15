@@ -5,7 +5,7 @@
     \node (start) {Hash of $m_1 || m_2 || \ldots || m_n$};
     \node [right=.5cm of start] (H1) [draw] {$H_\textrm{small}$};
     \draw [->] (start) edge (H1);
-    \node [above=.5cm of H1] (x) {$x$};
+    \node [above=.5cm of H1] (x) {$m''$};
     \draw [->] (x) edge (H1);
     \node [right=.5cm of H1] (Hfinal) [draw] {$H_\textrm{small}$};
     \draw [->] (H1) edge (Hfinal);
