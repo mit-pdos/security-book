@@ -31,7 +31,7 @@ it is "computationally infeasible" to find two distinct strings
 $x$ and $x'$ such that $H(x) = H(x')$.
 :::
 
-Given a long message $m$, it's hash $H(m)$ under a collision-resistant
+Given a long message $m$, its hash $H(m)$ under a collision-resistant
 hash function is like a short "fingerprint" of the message---the
 hash essentially uniquely identifies the message $m$.
 For that reason, collision-resistant hash functions let you authenticate
@@ -46,7 +46,7 @@ To speed up this process, a company or Internet-service provider may set up loca
 of the remote files.
 Users can then download the files from the nearby mirror instead of the far-away server.
 However, without additional security measures, the mirror may
-server users a different file than the one the mirror fetched from the origin server.
+serve users a different file than the one the mirror fetched from the origin server.
 If the mirror is malicious, it can, for example, trick the user into installing
 a backdoored software update.
 (We saw an attack based on mirrors in @sec-intro-xcode.)
@@ -111,7 +111,7 @@ we use in this definition---one mindset we use in practice and the other mindset
     for all constants $c \in \mathbb{N}$.
 - In practice$\ldots$
   - We use a fixed hash function $H$ with a fixed-length output,
-    which might be as 256 or 512 bits.
+    which might be 256 or 512 bits.
   - An "efficient" adversary is one that runs in time $\leq 2^{128}$.
   - A "negligible" probability is some very small constant, like one smaller than $2^{-128}$.
 
@@ -171,7 +171,7 @@ are almost never used in practice.
 :::
 
 1. Build a small collision-resistant hash
-   function on a fixed-size domain $H_{small}: \bin^{2\lambda} \rightarrow \bin^\lambda$.
+   function on a fixed-size domain $H_\text{small}: \bin^{2\lambda} \rightarrow \bin^\lambda$.
    This step is, to some degree, "more art than science."
    The standard practice is to design a hash function that
    defeats all known collision-finding attacks.
@@ -231,7 +231,7 @@ length of the messages that they can hash. For example, SHA256 can
 hash messages of length up to $2^{64}-1$ bits.
 :::
 
-We won't prove it here, but we can use the fact that $H_{small}$ is
+We won't prove it here, but we can use the fact that $H_\text{small}$ is
 collision-resistant to prove that $H$ must also be collision-resistant.
 The basic idea of the proof is to show that given a collision in $H$, we
 can easily compute a collision in $H_{\text{small}}$.
@@ -244,6 +244,86 @@ string and start by setting $b \gets m_1$ and then continue by hashing $m_2, m_3
 The construction is *not* collision resistant if we omit the length block
 $\mathsf{ToBlock}(n)$ that we hash in at the end.
 
+**Why the length block is necessary.**
+Suppose we delete the final step $b \gets H_\text{small}(b, \mathsf{ToBlock}(n))$
+from @fig-md, and call the resulting function $H^-$.
+Collisions between two messages with the *same* number of blocks still
+yield collisions in $H_\text{small}$: walking backwards from the last block,
+at each step either the two inputs to $H_\text{small}$ differ---giving a
+collision---or they agree and we continue.
+So any attack must use messages of *different* lengths, and the job of
+$\mathsf{ToBlock}(n)$ is exactly to keep those apart.
+
+To see that $H^-$ really is broken, it is not enough to exhibit an attack
+against some particular hash function: we must show that the collision
+resistance of $H_\text{small}$ does not *imply* that of $H^-$.
+We do this by constructing an $H_\text{small}$ that is collision resistant
+and yet makes $H^-$ trivially insecure.
+
+::: {#def-md-no-length}
+## A collision-resistant $H_\text{small}$ that breaks $H^-$
+
+Let $G: \bin^{2\lambda} \rightarrow \bin^{\lambda-1}$ be any
+collision-resistant function, and define
+$H_\text{small}: \bin^{2\lambda} \rightarrow \bin^{\lambda}$ by
+$$
+H_\text{small}(b, m) =
+\begin{cases}
+  0^{\lambda} & \text{if } b \| m = 0^{2\lambda},\\
+  1 \| G(b, m) & \text{otherwise.}
+\end{cases}
+$$
+:::
+
+::: {#lem-hsmall-cr}
+## Collision resistance of $H_\text{small}$
+
+If $G$ is collision resistant, then so is $H_\text{small}$.
+:::
+
+::: {.proof}
+Let $x \neq x'$ satisfy $H_\text{small}(x) = H_\text{small}(x')$.
+The two outputs have the same leading bit, so either both begin with $1$,
+in which case $G(x) = G(x')$ and we have a collision in $G$;
+or both equal $0^{\lambda}$, which forces $x = x' = 0^{2\lambda}$ and
+contradicts $x \neq x'$.
+:::
+
+::: {.column-margin}
+This is the only property of $H_\text{small}$ that the attack uses.
+Any $H_\text{small}$ with $H_\text{small}(0^\lambda, m^*) = 0^\lambda$
+for some block $m^*$ is equally fatal; prepending copies of $m^*$ then
+leaves the hash unchanged.
+:::
+
+By construction, $H_\text{small}$ has a *fixed point at the initialization value*:
+$$ H_\text{small}(0^{\lambda}, 0^{\lambda}) = 0^{\lambda}. $$
+Feeding an all-zeros block into the chaining variable while the chaining
+variable still holds the initialization value $0^{\lambda}$ leaves it
+unchanged. Prepending an all-zeros block to a message therefore adds one
+iteration that does nothing, and so for *every* message $m$,
+$$ H^-(0^{\lambda} \| m) = H^-(m). $$
+
+Taking $n = 1$ and $n = 2$ gives an explicit collision.
+With $\lambda = 32$ and $G$ instantiated by truncating SHA-256
+to its first $31$ bits, the two messages
+$$ M = \texttt{41414141} \qquad\text{and}\qquad M' = \texttt{00000000} \| \texttt{41414141} $$
+both satisfy $H^-(M) = H^-(M') = \texttt{d740d7ef}$.
+Note that $M$ and $M'$ differ in content, not merely in length.
+The same trick works at any size: for $n = 2$ versus $n = 3$,
+$$ \texttt{41414141} \| \texttt{42424242} \qquad\text{and}\qquad \texttt{00000000} \| \texttt{41414141} \| \texttt{42424242} $$
+both hash to $\texttt{d314a585}$. Degenerately, every all-zeros message
+$0^{\lambda}, 0^{2\lambda}, 0^{3\lambda}, \dots$ hashes to $0^{\lambda}$.
+
+Restoring the length block repairs all of this.
+The two messages above now reach the final step with the same chaining
+value $\texttt{d740d7ef}$ but distinct second arguments
+$\mathsf{ToBlock}(1)$ and $\mathsf{ToBlock}(2)$, so their hashes
+$\texttt{ca06ae43}$ and $\texttt{dae0f489}$ could only coincide if
+$H_\text{small}$ itself had a collision.
+In short: a fixed point lets messages with different block counts converge
+on a common chaining value, and $\mathsf{ToBlock}(n)$ separates them again.
+
 ### The Birthday Paradox
 
 ::: {.column-margin}
@@ -255,7 +335,7 @@ among these inputs with constant probability.
 An important thing to understand when dealing with hash functions is the "Birthday Paradox,"
 which states that given a hash function with $\lambda$-bit output, you can
 always find a collision in time $O(\sqrt{2^\lambda}) = O(2^{\lambda/2})$.
-So, if you want to force an attacker to use at least $2^{128}$ to find a collision,
+So, if you want to force an attacker to use at least $2^{128}$ time to find a collision,
 you must use a hash function with at least 256 bits of output.
 
 ### Domain Separation
@@ -272,6 +352,9 @@ this---they concatenated all parameters before
 hashing, and had parameters such that two
 different intents had the same concatenation [@flickr].
 
+A better, though more expensive, way is
+$$ H_2(x, y) = H(H(x) \| H(y)). $$
+
 ### Length-Extension
 
 Recall the concept of Message Authentication Codes
@@ -280,16 +363,59 @@ sent along with a message to verify that the message was not changed.
 (We will see the formal definition in @sec-mac.)
 
 **Bad idea.**
-Poorly designed software uses $\MAC(k, m) = H(k \| m)$ as a very simple construction of a MAC.
-However, this construction has an easy attack---given $\MAC(k, m)$, it is easy to compute $\MAC(k, m\|m')$
-without knowing the key $k$ if $H$ is a hash function built with the Merkle-Damgård construction.
-To do this, the attacker hashes the output of $\MAC(k, m)$ with two more blocks---a new
-message $m''$ and another length block. Now, we
-have computed $\MAC(k, m\|m')$ where $m'$ is the
-original length block plus some custom message
-without knowing the key $k$.
+Poorly designed software uses $\MAC(k, m) = H(k \| m)$ as a very simple
+construction of a MAC.
+If $H$ is built with the Merkle-Damgård construction, this has an easy
+attack: an adversary who sees a single valid tag can forge a tag on a
+*longer* message, without ever learning the key $k$.
 
-This problem here is that we were using a hash
+The reason is that a Merkle-Damgård hash *is* its own chaining
+variable. Write $n$ for the number of blocks in $k \| m$, and let
+$$ t = \MAC(k, m) = H(k \| m). $$
+By @fig-md, $t$ is exactly the value of the chaining variable $b$ after
+the construction has absorbed the $n$ message blocks and the final length
+block $\mathsf{ToBlock}(n)$. Nothing about $t$ is secret or opaque: it is a
+snapshot of the entire internal state. An attacker who sets $b \gets t$ and
+keeps iterating $H_\text{small}$ is simply resuming the hash computation
+where the honest party stopped.
+
+**The attack.**
+Let $m''$ be any suffix the attacker wishes to append, padded to a whole
+number of blocks. Given $m$ and $t$, the attacker computes
+
+1. $b \gets H_\text{small}(t, m'')$, and
+2. $b \gets H_\text{small}(b, \mathsf{ToBlock}(n+2))$,
+
+and outputs $b$. This is a valid tag on a message the attacker never had the
+key to authenticate.
+
+**Which message was forged?**
+Here is the subtle point. The attacker resumed the chain *after* the
+length block $\mathsf{ToBlock}(n)$ had already been absorbed, so that block is
+now an unavoidable part of the string being hashed. What the attacker has
+computed is
+$$
+b = H\big(\underbrace{k \| m}_{\text{original}} \;\|\;
+    \underbrace{\mathsf{ToBlock}(n)}_{\text{forced glue}} \;\|\;
+    \underbrace{m''}_{\text{attacker's choice}}\big)
+  \;=\; \MAC(k, m \| m'),
+$$
+where
+$$ m' = \mathsf{ToBlock}(n) \| m''. $$
+So $m''$ is not an alternative name for $m'$: it is the tail of it. The
+attacker chooses $m''$ freely but cannot avoid the glue block that precedes
+it, which is why the forgery is a tag on $m \| m'$ rather than on the cleaner
+$m \| m''$. In practice this is rarely an obstacle---the glue is a short run
+of bytes, and many formats (query strings, log lines, serialized records)
+will happily ignore or tolerate it.
+
+Two details are worth noting. First, the attacker must know $|k|$, though not
+$k$ itself, since $n$ depends on the key's length; in practice the key length
+is public, or the attacker simply tries each plausible value. Second, the
+attack needs no collision in $H$ and no weakness in $H_\text{small}$
+whatsoever---it works against a perfectly good compression function.
+
+The problem here is that we were using a hash
 function that was *only* guaranteed to be
 collision resistant, but we assumed that it had other
 properties (such as that it is guaranteed to be
@@ -298,7 +424,7 @@ the original message). @fig-merkle-damgard-extension
 sketches out the length-extension attack on the Merkle-Damgård
 construction from @fig-merkle-damgard.
 
-![Sketch of the extension attack on the Merkle-Damgård construction, starting with a hash of $m_1 || m_2 || \ldots || m_n$ to compute the hash of $m_1 || m_2 || \ldots || m_n || \textsf{ToBlock}(n) || x$.](/figs/merkle-damgard-extension.svg){#fig-merkle-damgard-extension}
+![Sketch of the extension attack on the Merkle-Damgård construction, starting with a hash of $m_1 || m_2 || \ldots || m_n$ to compute the hash of $m_1 || m_2 || \ldots || m_n || \textsf{ToBlock}(n) || m''$.](/figs/merkle-damgard-extension.svg){#fig-merkle-damgard-extension}
 
 ## Applications: Merkle Trees
 
