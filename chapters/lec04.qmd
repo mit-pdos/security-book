@@ -64,12 +64,12 @@ to compute a valid MAC of *any* message $m\in \mathcal{M}$
 of its choice.
 It's not entirely obvious why we care about the adversary producing
 a valid MAC on *any* message: "If the
-adversary MACs a message that is jibberish, they
+adversary MACs a message that is gibberish, they
 are unlikely to be able to do any harm with it,"
 you might think.
 But there will certainly be applications
 that authenticate messages that violate whatever
-definition of "non-jibberish" we define.
+definition of "non-gibberish" we define.
 So allowing the adversary to forge a MAC tag on any
 message makes the definition as broadly applicable as possible.
 
@@ -250,8 +250,17 @@ compute (per bit of input) than pseudorandom functions, such as AES.
 
 ::: {.column-margin}
 Applying the PRF to the last block using an independent random key is important.
-If we do not use a new key, an adversary can mount a length-extension attack.
-That is, if the adversary asks for $t = \mathsf{MAC}(k, m_1)$ and $t' = \mathsf{MAC}(k, t)$, $t'$ is also a valid key for the original message with two zero blocks attached $\mathsf{MAC}(k, m_1 \| 0 \| 0)$. The chain of AES applications becomes equivalent, since zero blocks are equivalent to skipping the XOR and adding AES applications.
+If we use the same key $k$, an adversary can mount a length-extension attack.
+Writing $E(x) = F(k,x)$, an $n$-block message costs $n+1$ applications of $E$.
+The adversary queries the one-block message $m_1$, receiving $t = E(E(m_1))$, and
+then queries the one-block message whose contents are the bit string $t$,
+receiving $t' = E(E(t))$. But
+$\mathsf{MAC}(k, m_1 \| 0 \| 0) = E(E(E(E(m_1)))) = E(E(t)) = t'$,
+so $t'$ is a valid tag on a message the adversary never queried. Two zero blocks
+are needed because the second query contributes two applications of $E$: one for
+its message block and one for its final step. A zero block is free to append
+since $0 \oplus t_{i-1} = t_{i-1}$, so it passes the chaining value through and
+adds one more $E$.
 :::
 
 A common and secure way to construct a MAC for long messages from a MAC for short messages
@@ -324,7 +333,7 @@ the adversary does not know what key will be used.
 
 One simple and practical construction of a universal hash function
 is based on polynomials.  Given a long message $m$, break it up into
-fixed-size chunks $m_0, m_1, \ldots, m_{l-1}$.  Then,
+fixed-size chunks $m_1, m_2, \ldots, m_{l}$.  Then,
 the hash of that message is defined as:
 
 ::: {.column-margin}
@@ -333,9 +342,19 @@ these fixed-size chunks are going to be 128 or 256 bits long.
 :::
 
 $$
-H(k, m_0 || m_1 || \ldots || m_{l-1}) = (m_0 + m_1 k + m_2 k^2 +
-  \ldots + m_{l-1} k^{l-1}) \mod p
+H(k, m_1 || m_2 || \ldots || m_{l}) = (m_1 + m_2 k + m_3 k^2 +
+  \ldots + m_{l} k^{l-1} + k^{l}) \mod p
 $$
+
+::: {.column-margin}
+The final monic term $k^l$ is essential, even though it
+involves no message block. Without it, a message and the same message
+with trailing zero chunks appended hash to the same value for
+*every* key: the added chunks contribute nothing to the sum.
+The term $k^l$ makes the map from messages to polynomials injective,
+since the degree records the number of chunks and the remaining
+coefficients record their contents.
+:::
 
 We can give some intuition for why $H$ is a universal hash function
 (i.e., collision-resistant for a randomly chosen key).  In order for
@@ -344,14 +363,20 @@ $H(k, m) = H(k, m')$, which in turn means that $H(k, m) - H(k, m') = 0$.
 Expanding the definition of $H$ as a polynomial, this means that
 
 $$
-(m_0 - m'_0) + (m_1 - m'_1) k + (m_2 - m'_2) k^2 + \ldots + (m_{l-1} - m'_{l-1}) k^{l-1} = 0
+(m_1 - m'_1) + (m_2 - m'_2) k + \ldots + (m_{l} - m'_{l}) k^{l-1}
+  + (k^{l} - k^{l'}) = 0
 $$
 
-which is another way of saying that $k$ is a root of that degree-$l-1$
-polynomial.  We know that there can be at most $l-1$ roots of a
-degree-$l-1$ polynomial, but there are $p \approx 2^n$ possible choices
-for $k$, so the probability that our randomly-chosen $k$ happens to be
-one of those roots is $\frac{l-1}{p}$, which is negligible.
+which is another way of saying that $k$ is a root of that polynomial.
+That polynomial is not identically zero.  If the two messages have the
+same number of chunks $l = l'$, the two monic terms cancel and some
+coefficient $m_i - m'_i$ is non-zero because $m \neq m'$.  If instead
+$l < l'$, the term $-k^{l'}$ survives and the polynomial has degree
+exactly $l'$.  Either way we have a non-zero polynomial of degree at
+most $\max(l, l')$, so it has at most that many roots, but there are
+$p \approx 2^n$ possible choices for $k$.  The probability that our
+randomly-chosen $k$ happens to be one of those roots is therefore at
+most $\frac{\max(l,l')}{p}$, which is negligible.
 
 **MAC construction.**
 
@@ -389,17 +414,16 @@ $\MACSign(k, m \in \Z^{\leq L}_p) \to t$.
 
 - Compute $v \gets F(k, 0) \in \Z_p$.
 - Parse the message into chunks as $(m_1, \dots, m_{\ell}) \gets m \in \Z_p^\ell$.
-- Compute $M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 \cdots + m_{\ell} v^{\ell} \in \Z_p$.
+- Compute $M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 + \cdots + m_{\ell} v^{\ell} + v^{\ell+1} \in \Z_p$.
 
   ::: {.column-margin}
   Essentially we are viewing the blocks of the message
-  $m$ as coefficients of a degree-$t$
+  $m$ as coefficients of a degree-$(\ell+1)$
   polynomial $M(\cdot)$. We then evaluate this polynomial
   at the secret point $v$ determined by the MAC key.
+  The trailing monic term $v^{\ell+1}$ carries no message block;
+  its job is to record the message length in the degree.
   :::
-
-  [**TODO (HCG):** Check the definition of the message polynomial $M$. Should
-  there be an additional $v^{t+1}$ monomial?]{.todo .content-visible when-profile="draft"}
 - Sample a nonce $r \getsr \Z_p$.
 - Output $t \gets \big(r, F(k, r) + M(v)\big) \in \Z^2_p$ as the MAC tag.
 
@@ -407,9 +431,25 @@ $\MACVerify(k, m, t) \to \zo$.
 
 - Compute $v \gets F(k, 0) \in \Z_p$.
 - Parse the message into chunks as $(m_1, \dots, m_{\ell}) \gets m \in \Z_p^\ell$.
-- Compute $M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 + \cdots + m_{\ell} v^{\ell}\in \Z_p$.
+- Compute $M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 + \cdots + m_{\ell} v^{\ell} + v^{\ell+1} \in \Z_p$.
 - Parse the tag $(r, z) \gets t \in \Z^2_p$.
 - Output "1" if and only if $z - F(k, r) = M(v)$.
+
+**Why the trailing monomial?**
+Suppose we had defined $M(v) = m_1 v + \dots + m_{\ell} v^{\ell}$, without
+the final $v^{\ell+1}$ term.  Then appending a zero block to a message would
+leave the polynomial unchanged, and the scheme would be forgeable after a
+single query.  An adversary asks for a tag on the one-block message
+$m = (m_1)$ and receives $t = (r, z)$ with $z = F(k,r) + m_1 v$.  The message
+$m^* = (m_1, 0) \neq m$ has
+$$
+  M^*(v) = m_1 v + 0 \cdot v^2 = m_1 v = M(v),
+$$
+so $\MACVerify(k, m^*, t)$ accepts the very same tag, with probability $1$.
+More generally $m$ and $m \| 0^j$ would collide for every $j$.
+The trailing monic term rules this out by making the map from messages to
+polynomials injective: the degree of $M$ determines $\ell$, and the
+remaining coefficients determine $m_1, \dots, m_{\ell}$.
 
 **Security intuition.**
 The security argument here goes as follows:
@@ -426,7 +466,7 @@ Section 7.4.
 
 - Next, we show that as long as the $\MACSign$ algorithm never
   samples the same nonce $r$ twice, the masking values $F(k,r)$
-  are independent random values that complete hide the values $M(v)$.
+  are independent random values that completely hide the values $M(v)$.
   So, the adversary learns no information on the secret point $v$
   by making MAC queries.
 
@@ -439,21 +479,30 @@ Section 7.4.
   - Alternatively, the forger could use a random nonce $r^*$
     that is equal to the nonce $r$ returned from one of the adversary's
     MAC queries.
-    In this case, we have the following relations, where message
-    $m$ polynomial $M$ was the message the adversary queried of
-    the challenger:
+    In this case, we have the following relations, where $M$ is
+    the polynomial of the message $m$ that the adversary queried
+    of the challenger:
     $$\begin{aligned}
-      F(k, r) &= M(v) - z\\
-      F(k, r) &= M^*(v) - z^*\\
-      0 &= \big(M(v) - M^*(v)\big) + (z - z^*).
+      F(k, r) &= z - M(v)\\
+      F(k, r) &= z^* - M^*(v)\\
+      0 &= \big(M(v) - M^*(v)\big) + (z^* - z).
     \end{aligned}$$
-    Since $m \neq m^*$, we know $z \neq z^*$.
-    So $(M(\cdot) - M^*(\cdot)) + (z^* - z)$ is a non-zero polynomial
-    of degree at most $t$.
-    Since such a polynomial can have at most $\ell \leq L$ zeros in $\Z_p$,
-    and since the adversaries view is independent of the evaluation
+    Since $m \neq m^*$ and the message encoding is injective,
+    $M(\cdot)$ and $M^*(\cdot)$ are distinct polynomials, so
+    $\big(M(\cdot) - M^*(\cdot)\big) + (z^* - z)$ is not identically
+    zero.
+
+    ::: {.column-margin}
+    The added constant $z^* - z$ cannot cancel
+    $M(\cdot) - M^*(\cdot)$, because neither $M$ nor $M^*$ has a
+    constant term, so their difference is never a non-zero constant.
+    :::
+
+    It is a non-zero polynomial of degree at most $L+1$, so it has at
+    most $L+1$ roots in $\Z_p$.
+    Since the adversary's view is independent of the evaluation
     point $v \in \Z_p$, the probability that the adversary's
-    forgery is valid is at most $\ell/p$.
+    forgery is valid is at most $(L+1)/p$.
 
   In either case, the adversary's probability of forging is
   $O(L)/p = \poly(\lambda) \cdot \negl(\lambda) = \negl(\lambda)$
