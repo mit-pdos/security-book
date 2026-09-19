@@ -507,3 +507,8 @@ Section 7.4.
   In either case, the adversary's probability of forging is
   $O(L)/p = \poly(\lambda) \cdot \negl(\lambda) = \negl(\lambda)$
   on security parameter $\lambda$.
+
+
+Note that nonce reuse is catastrophic. Say two distinct messages $m \neq m'$
+that produce $(r, z)$ and $(r, z')$, where $z = F(k,r) + M(v)$ and
+$z' = F(k,r) + M'(v)$. The adversary is able to discover the secret value $v$, and then forge any message.
