@@ -507,6 +507,9 @@ Our construction is as follows:
       prefix $x$ of $r$ (from $\varepsilon$ to $r_1 r_2 \ldots r_{255}$).
 :::
 
+A final note is that when multiple messages are signed, the paths to the two different
+ leaves are shared from the root. But the shared path from the root (up until divergence) will sign the \emph{same} strings, thanks to determinism. Therefore, the one-time
+signing requirement is not violated.
 This is Goldreich's construction; the practical descendant is SPHINCS+, which appears in the table below.
 
 ## Choosing Signature Schemes
