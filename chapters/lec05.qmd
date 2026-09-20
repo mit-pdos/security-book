@@ -254,7 +254,7 @@ of our assumptions, so the first adversary cannot exist.
 
 ::: {.proof}
 Suppose there exists an adversary $\A$ that wins the
-one-time-security game of @def-sig-once with non-negligible probability $\epsilon$.
+one-time-security game of @def-sig-once with non-negligible probability $\gamma$.
 That is, the adversary can produces $(m^*, \sig^*)$ such that $\Ver(\vk, m^*, \sig^*) = 1$ and $m \neq m^*$ given only $\sig = \Sign(\sk, m)$.
 We can then construct an adversary $\B$ that can use $\A$ to
 invert the one-way function.
@@ -319,16 +319,16 @@ we can say:
 
 The events that $\calA$ breaks the signature scheme
 and that either of these failures occur are all *independent*.
-Then if $\calA$ breaks the one-time security of the Lamport signature scheme with probability $\epsilon$,
+Then if $\calA$ breaks the one-time security of the Lamport signature scheme with probability $\gamma$,
 our one-way-function adversary $\calB$
 inverts the one-way function with probability
-$$ \epsilon_\text{one-way} = \epsilon \cdot \frac{1}{2} \cdot \frac{1}{n}.$$
+$$ \gamma_\text{one-way} = \gamma \cdot \frac{1}{2} \cdot \frac{1}{n}.$$
 
 The probability of either bad is at most $1/2 + 1/n$,
 by the union bound.
 Therefore if algorithm $\calA$ breaks one-time security of Lamport's
-scheme with probability $\epsilon$, and
-if $\epsilon$ is non-negligible, then $\epsilon_\text{one-way} = \epsilon/2n$
+scheme with probability $\gamma$, and
+if $\gamma$ is non-negligible, then $\gamma_\text{one-way} = \gamma/2n$
 is also non-negligible, and we have a contradiction.
 :::
 
@@ -430,6 +430,7 @@ of accidentally choosing the same leaf twice is negligible ($2^{-128}$).
 The signing key in an intermediate nodes (and in the root) will be used
 to sign the (public) verification keys of the two corresponding child
 nodes in the tree.  @fig-lamport-tree shows a sketch of this tree.
+We write $\varepsilon$ for the empty string, signifying the root of the tree.
 
 ![Sketch of the tree of Lamport signature keys used for the many-time secure signature construction.](/figs/lamport-tree.svg){#fig-lamport-tree}
 
@@ -467,13 +468,24 @@ we will construct a many-time secure signature scheme $(\Gen, \Sign,
 \Ver)$ for arbitrary-length messages (i.e., on message space $\zo^\ast$),
 where all of the algorithms are efficient ($\poly(\cdot)$ running time).
 
+::: {.column-margin}
+Two details matter here. First, node labels have varying
+lengths, so the PRF input must encode them injectively---otherwise
+$\varepsilon$, $0$, and $00$ collide and the root shares a one-time key
+with its descendants, which is a total break. Second, a single PRF output
+is far shorter than the randomness $\Gen_0$ needs (e.g., in the Lamport scheme),
+so $F(k,s)$ is used as a seed for a pseudorandom number generator, or each
+component is derived separately as $F(k, \langle s \rangle \| \langle i
+\rangle \| b)$.
+:::
+
 Our construction is as follows:
 
 ::: {.callout-note appearance="simple" icon=false}
 - $\Gen() \to (\sk, \vk)$:
   - Sample a fresh PRF key $k \getsr \calK$.
-  - Set $(\sk_\epsilon, \vk_\epsilon) \gets \Gen_0^{F(k, \text{“”})}()$.
-  - Output $(\sk, \vk) \gets (k, \vk_\epsilon)$.
+  - Set $(\sk_\varepsilon, \vk_\varepsilon) \gets \Gen_0^{F(k, \text{“”})}()$.
+  - Output $(\sk, \vk) \gets (k, \vk_\varepsilon)$.
 - $\Sign_t(k, m) \to \sigma$:
   - Choose a random 256-bit value $r = (r_1 \dots r_{256}) \in \zo^{256})$.
   - Compute $(\sk_r, \vk_r) \gets \Gen_0^{F(k, \text{r})}()$
@@ -486,7 +498,7 @@ Our construction is as follows:
     $\vk_{r_1 r_2 \ldots r_{255} 1}$
     as shown in @fig-lamport-tree.
   - Output $\sigma \gets (r, \sigma_\varepsilon, \vk_0, \vk_1, \sigma_{r_1}, \vk_{r_1 0}, \vk_{r_1 1}, \ldots, \sigma_r)$.
-- $\Ver_t(\vk_\epsilon, m, \sigma) \to \zo$:
+- $\Ver_t(\vk_\varepsilon, m, \sigma) \to \zo$:
   - Parse $(r, \sigma_\varepsilon, \vk_0, \vk_1, \sigma_{r_1}, \vk_{r_1 0}, \vk_{r_1 1}, \ldots, \sigma_r) \gets \sigma$.
   - Output "1" if and only if
     - $\Ver_0(\vk_r, \text{SHA256}(m), \sigma_r) = 1$
