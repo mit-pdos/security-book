@@ -122,7 +122,7 @@ adversaries.  There is ongoing work to standardize signature schemes secure
 against quantum adversaries; see <https://csrc.nist.gov/projects/pqc-dig-sig>
 :::
 
-We will construct this scheme in three stages:
+We will construct this scheme in four stages:
 
 1. Construct a signature scheme for signing a *single bit*.
 
