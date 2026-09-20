@@ -489,9 +489,9 @@ Our construction is as follows:
 - $\Ver_t(\vk_\epsilon, m, \sigma) \to \zo$:
   - Parse $(r, \sigma_\varepsilon, \vk_0, \vk_1, \sigma_{r_1}, \vk_{r_1 0}, \vk_{r_1 1}, \ldots, \sigma_r) \gets \sigma$.
   - Output "1" if and only if
-    - $\Ver_0(\vk_r, \sigma_r, \text{SHA256}(m)) = 1$
+    - $\Ver_0(\vk_r, \text{SHA256}(m), \sigma_r) = 1$
       and
-    - $\Ver_0(\vk_x, \sigma_x, \vk_{x0} || \vk_{x1}) = 1$ for every
+    - $\Ver_0(\vk_x, \vk_{x0} || \vk_{x1}, \sigma_x) = 1$ for every
       prefix $x$ of $r$ (from $\varepsilon$ to $r_1 r_2 \ldots r_{255}$).
 :::
 
