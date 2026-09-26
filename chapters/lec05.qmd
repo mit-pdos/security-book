@@ -484,7 +484,7 @@ Our construction is as follows:
 ::: {.callout-note appearance="simple" icon=false}
 - $\Gen() \to (\sk, \vk)$:
   - Sample a fresh PRF key $k \getsr \calK$.
-  - Set $(\sk_\varepsilon, \vk_\varepsilon) \gets \Gen_0^{F(k, \text{“”})}()$.
+  - Set $(\sk_\varepsilon, \vk_\varepsilon) \gets \Gen_0^{F(k, \varepsilon)}()$.
   - Output $(\sk, \vk) \gets (k, \vk_\varepsilon)$.
 - $\Sign_t(k, m) \to \sigma$:
   - Choose a random 256-bit value $r = (r_1 \dots r_{256}) \in \zo^{256})$.
@@ -508,14 +508,16 @@ Our construction is as follows:
 :::
 
 A final note is that when multiple messages are signed, the paths to the two different
- leaves are shared from the root. But the shared path from the root (up until divergence) will sign the \emph{same} strings, thanks to determinism. Therefore, the one-time
+ leaves are shared from the root. But the shared path from the root (up until divergence) will sign the *same* strings, thanks to determinism. Therefore, the one-time
 signing requirement is not violated.
 This is Goldreich's construction; the practical descendant is SPHINCS+, which appears in the table below.
 
 ## Choosing Signature Schemes
 
 The signature scheme we presented in @sec-sig-manytime
-is not particularly efficient in terms of signature size.
+is not at all efficient in terms of signature size.
+It has been improved dramatically in the SPHINCS+ construction that we will not cover.
+SPHINCS+ is not particularly efficient either, but has received some use because it is plausibly post-quantum secure.
 
 | **Algorithm** | $\vk$ size | $\sig$ size | signatures/sec | verifications/sec |
 |--------------:|:----------:|:-----------:|:--------------:|:-----------------:|
