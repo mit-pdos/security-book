@@ -331,8 +331,9 @@ know of essentially two ways to find roots of polynomials modulo $N$:
   ::: {.column-margin}
   There are many clever attacks
   for solving polynomial equations modulo composites
-  that work in certain special cases, but for most purposes
-  these are the two known attacks.
+  that work in certain special cases.  The most important of these is
+  Coppersmith's method (@sec-coppersmith), which applies whenever
+  the root we are looking for is small.
   :::
 
   When $y \getsr \Z_N$, the probability that $y$ is a perfect
@@ -347,6 +348,74 @@ know of essentially two ways to find roots of polynomials modulo $N$:
   $p(X) \deq X^2 - y \bmod N$ for random $y \getsr \Z_N$ *is* as
   hard as factoring the modulus $N$.
   But for RSA-type polynomials, the answer is unclear.
+
+### Coppersmith's method: finding small roots {#sec-coppersmith}
+
+There is a third way to find roots of a polynomial modulo $N$, which
+works without factoring $N$ but only when the root we seek is
+*small*.
+
+::: {#thm-coppersmith}
+## Coppersmith [@Coppersmith97]
+
+Let $f(X) \in \Z_N[X]$ be a monic polynomial of degree $d$.  Then
+there is a polynomial-time algorithm that finds all integers $x_0$
+with $f(x_0) \equiv 0 \bmod N$ and
+$$ |x_0| < N^{1/d}. $$
+:::
+
+The method builds a lattice whose vectors correspond to polynomials
+that vanish at $x_0$ modulo a high power $N^k$, and then runs the LLL
+lattice-reduction algorithm [@LLL82] to find a combination $g$
+whose coefficients are so small that $|g(x_0)| < N^k$.  But $g(x_0)$ is
+also a multiple of $N^k$, and the only multiple of $N^k$ smaller in
+absolute value than $N^k$ is zero.  So $g(x_0) = 0$ holds
+*over the integers*, and we can recover $x_0$ by ordinary
+root-finding.
+
+::: {.column-margin}
+In one sentence: lattice reduction converts a
+modular equation into an integer equation, and integer equations we
+know how to solve.  The bound $N^{1/d}$ is essentially the point at
+which $f(x_0)$ stops wrapping around the modulus.
+:::
+
+The theorem also applies when $x_0$ is close to a *known* value
+rather than close to zero: substituting $X = \tilde{x} + X'$ for a
+known guess $\tilde x$ turns "$x_0$ is within $N^{1/d}$ of
+$\tilde x$" into "the root of the shifted polynomial is small."
+This is what makes the method dangerous in practice, and it has
+several consequences for RSA.
+
+- **Partial knowledge of a prime factor is fatal.**  Given
+  roughly the top half of the bits of $p$---that is, $p = \tilde p +
+  x_0$ with $\tilde p$ known and $|x_0| < N^{1/4}$---one can factor
+  $N$ in polynomial time.  RSA keys tolerate no partial leakage of
+  their primes whatsoever.
+
+- **Structured primes are fatal.**  The ROCA
+  vulnerability [@ROCA17] concerned a widely deployed library
+  that generated primes of the special form $p = k \cdot M +
+  (65537^a \bmod M)$ for a fixed constant $M$.  That structure leaves
+  few enough unknowns that Coppersmith's method factors the modulus:
+  1024-bit keys fell in a few hundred CPU-hours.  Affected keys were
+  identifiable *from the public modulus alone*, and the flaw
+  forced a mass revocation of national identity certificates.
+
+- **A small private exponent is fatal.**  If $d <
+  N^{0.292}$, the modulus can be factored [@BD99], improving
+  an earlier bound of $N^{0.25}$ due to Wiener.  This is why we choose
+  a small *public* exponent $e$ to speed up the forward
+  direction, and never a small private exponent $d$.
+
+None of this breaks the scheme as we have presented it.  Full-domain
+hash applies the RSA function to $H(m)$, which is a uniform element of
+$\Z^*_N$ with no small or structured part, so @thm-coppersmith
+has no small root to find.  But it does sharpen the warning made
+earlier in this chapter: the RSA function is assumed hard to invert only on
+*random* inputs, and Coppersmith's method is the concrete reason
+that inputs which are small, structured, or partially known are a
+different matter entirely.
 
 ## The RSA construction: Inverse direction
 
@@ -450,10 +519,15 @@ That algorithm is more general, but the one we used in @lem-inv
 is simpler and is self-contained.
 
 **Inverting RSA is easy on a negligible fraction of points.**
-Recall the RSA is
-If the preimage under the RSA function of a point $y$ is very very small,
-then
-If $x < N^{1/5}$, then computing $x$ given $y = x^5 \bmod N$ is *easy*.
+If the preimage $x$ of a point $y$ under the RSA function is very small,
+inverting the function is *easy*: when $x < N^{1/5}$, the value
+$x^5$ never wraps around the modulus, so $y = x^5$ holds over the
+integers and we can recover $x$ by taking an ordinary fifth root.
+More generally, @thm-coppersmith recovers $x$ whenever it lies
+within $N^{1/5}$ of a value we can guess.  For a uniformly random
+$y \getsr \Z^*_N$ such an $x$ occurs only with negligible
+probability $\approx 2^{-4\lambda/5}$, which is why the RSA assumption
+is stated for random inputs.
 
 **Is inverting RSA as hard as factoring the modulus $N$?**
 The inversion algorithm we showed here requires knowing the prime factors
