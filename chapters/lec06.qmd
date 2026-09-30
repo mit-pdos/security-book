@@ -353,10 +353,10 @@ know of essentially two ways to find roots of polynomials modulo $N$:
 
 There is a third way to find roots of a polynomial modulo $N$, which
 works without factoring $N$ but only when the root we seek is
-*small*.
+*small*. [@Coppersmith97]
 
 ::: {#thm-coppersmith}
-## Coppersmith [@Coppersmith97]
+## Coppersmith
 
 Let $f(X) \in \Z_N[X]$ be a monic polynomial of degree $d$.  Then
 there is a polynomial-time algorithm that finds all integers $x_0$
