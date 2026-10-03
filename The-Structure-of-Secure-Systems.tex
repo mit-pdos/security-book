@@ -307,10 +307,10 @@
 \usepackage{amsthm}
 \theoremstyle{plain}
 \newtheorem{lemma}{Lemma}[chapter]
-\theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[chapter]
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[chapter]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
 \newtheorem*{remark}{Remark}
@@ -331,6 +331,10 @@
 \usepackage{bookmark}
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same}
+% fallback for those not using the hyperref driver hyperxmp:
+\makeatletter
+\@ifundefined{xmpquote}{\newcommand{\xmpquote}[1]{#1}}{}
+\makeatother
 \hypersetup{
   pdftitle={The Structure of Secure Systems},
   pdfauthor={Henry Corrigan-Gibbs, Srini Devadas, Yael Kalai, Nickolai Zeldovich},
@@ -898,8 +902,8 @@ deciding how to handle it. For this, it is crucial to know \emph{who}
 issued the request. Then, we can decide whether the system should allow
 the request.
 
-Typically, a computer system performs two steps before processing a
-request:
+Typically, a computer system performs two or more steps before
+processing a request:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
@@ -932,7 +936,8 @@ server---two machines communicating over a network.
 
 Another common scenario has a human being authenticating to a computer:
 think about typing a PIN into a phone or a password into a computer
-terminal. We will discuss this setting more when we come to passwords.
+terminal or bank ATM machine. We will discuss this setting more when we
+come to passwords.
 
 \end{footnotesize}}
 
@@ -949,9 +954,9 @@ against which types of attack are we trying to defend?
 
 }
 
-\caption{\label{fig-auth-attacks}There are (at least) three interesting
-security goals for client-server authentication systems: (a) direct
-attack, (b) eavesdropping attack, and (c) active attack.}
+\caption{\label{fig-auth-attacks}Three common security goals for
+client-server authentication systems: (a) direct attack, (b)
+eavesdropping attack, and (c) active attack.}
 
 \end{figure}%
 
@@ -961,31 +966,46 @@ strength are:
 
 \begin{itemize}
 \item
-  \emph{Direct attack.} The attacker never sees the target user
-  authenticate and then tries to impersonate the honest user. PIN-based
-  authentication systems, e.g., on your phone or on an ATM machine,
-  often aim to defend only against direct attacks. The screen-lock
-  password that protects your laptop is also an authentication system
-  that just attempts to protect against direct attack.
+  \emph{Direct attack.} The attacker tries to impersonate the honest
+  user, even though the attacker has never seen the target user
+  authenticate. PIN-based and password-based authentication systems
+  typically aim to defend only against direct attacks. For example, if
+  your phone has a screen-lock PIN, it defends against an attacker that
+  finds your phone on the street and tries to unlock it by guessing your
+  PIN.
 
-  That is, these systems do not protect against an attacker that can
-  look over your shoulder while you are typing your password. These
-  systems only aim to provide security when the attacker \emph{never}
-  sees you (the honest user) authenticate.
+  At the same time, PIN-based authentication systems do \emph{not}
+  protect against an attacker that can look over your shoulder while you
+  are typing your password. These systems only aim to provide security
+  when the attacker \emph{never} sees you (the honest user)
+  authenticate.
 \item
-  \emph{Eavesdropping attack.} The attacker observes an honest user
-  authenticating many times---i.e., the attacker sees all of the traffic
-  between the client and server---and then tries to impersonate that
-  user. One-time passwords, such as the six-digit authentication codes
-  that the Google Authenticator app uses, aim to protect against
+  \emph{Eavesdropping attack.} A stronger security goal for
+  authentication systems is to defend against \emph{eavesdropping
+  attacks}. Here, the attacker observes an honest user authenticating
+  many times and then tries to impersonate that user. For example, an
+  attacker looks over the shoulder of an honest user authenticating many
+  times, and then tries to impersonate the honest user. Or, an attacker
+  sees all of the traffic between the client and server, and then tries
+  to impersonate the client.
+
+  One-time passwords, such as the six-digit authentication codes that
+  the Google Authenticator app uses, aim to protect against
   eavesdropping attacks: an attacker who sees one of your one-time
   passwords will not be able to use it to authenticate as you; it is a
   \emph{one-time} password.
 \item
-  \emph{Active attack.} The attacker that compromises the server,
-  interacts with the honest user, and after the server is restored to a
-  good state, tries to authenticate as the honest user (\emph{active
-  attack}).
+  \emph{Active attack.} The strongest security goal that we will
+  consider is security against an \emph{active attack}. Here, we
+  envision an attacker that compromises the server, then interacts many
+  times with the honest user, and finally---after the server is restored
+  to a good state---tries to authenticate as the honest user
+  (\emph{active attack}).
+
+  Servers on the web are often designed to protect against active
+  attacks: even if an attacker can break into one of Google's front-end
+  web servers interacts with authenticating clients, the attacker should
+  not be able to authenticate as those clients to other Google services
 
   U2F security keys, and other schemes based on digital signatures
   (Chapter~\ref{sec-sig}), aim to protect against active attacks.
@@ -997,6 +1017,10 @@ direct attacks. Systems that defend against eavesdropping also defend
 against direct attacks. Systems that defend against direct attacks are
 the weakest---they do not necessarily provide any protection against the
 other types of attack.
+
+In the remainder of this chapter, we will consider three increasingly
+strong types of authentication, that provide these three increasingly
+strong security properties.
 
 \section{Protecting against direct attacks: Bearer tokens, PINs, and
 passwords}\label{protecting-against-direct-attacks-bearer-tokens-pins-and-passwords}
@@ -1038,14 +1062,14 @@ The benefit of password-based authentication schemes is that they are
 simple and easy to implement. In addition, a human can play the role of
 the client in a password-based authentication system (e.g., as you do
 when you type a PIN into your phone). Fancier authentication systems
-require the client to compute non-trivial cryptographic functions---not
-functions that normal humans can compute in their brains.
+require the client to run complex cryptographic algorithms, which are
+too difficult for most humans to compute in their brains.
 
-Bearer-token-based schemes do provide security against direct attacks:
-if an attacker has never seen the user authenticate, the attacker's best
-strategy is to just guess the user's password. Thus, the security of
-these schemes against direct attacks depends entirely on the adversary's
-uncertainty about the password.
+Bearer-token-based schemes \emph{do} provide security against direct
+attacks: if a direct attacker has never seen the client authenticate,
+the attacker's best strategy is to just guess the client's password.
+Thus, the security of these schemes against direct attacks depends
+entirely on the adversary's uncertainty about the client's password.
 
 In some bearer-token-based systems, the server can assign a random
 password to each user. For example, when you create an account for
@@ -1054,12 +1078,12 @@ bearer token. You will have to include this secret key with each API
 request. Modern APIs use the stronger authentication mechanisms we
 describe later in this chapter.
 
+\subsection{What makes a good
+password?}\label{what-makes-a-good-password}
+
 In the vast majority of password- and PIN-based login systems, the user
 may choose their own password. This creates all sorts of
 headaches\ldots{}
-
-\subsection{What makes a good
-password?}\label{what-makes-a-good-password}
 
 \begin{figure}[H]
 
@@ -1074,48 +1098,9 @@ dominate.}
 
 \end{figure}%
 
-\marginnote{\begin{footnotesize}
-
-\begin{longtable}[]{@{}cc@{}}
-\caption{The most popular passwords in 2021, according to NordPass,
-\url{https://nordpass.com/most-common-passwords-list/}.}\tabularnewline
-\toprule\noalign{}
-Rank & Password \\
-\midrule\noalign{}
-\endfirsthead
-\toprule\noalign{}
-Rank & Password \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-1 & \texttt{123456} \\
-2 & \texttt{123456789} \\
-3 & 12345 \\
-4 & qwerty \\
-5 & password \\
-6 & 12345678 \\
-7 & 111111 \\
-8 & 123123 \\
-9 & 1234567890 \\
-10 & 1234567 \\
-11 & qwerty123 \\
-12 & 000000 \\
-13 & 1q2w3e \\
-14 & aa12345678 \\
-15 & abc123 \\
-16 & password1 \\
-17 & 1234 \\
-18 & qwertyuiop \\
-19 & 123321 \\
-20 & password123 \\
-\end{longtable}
-
-\end{footnotesize}}
-
 The security of a password-based authentication system rests entirely on
-the attacker's inability to guess the password in a small number of
-guesses.
+the attacker's inability to guess the client's password in a small
+number of guesses.
 
 \emph{Entropy} is a way to quantify an adversary's uncertainty about a
 value sampled using a random process, or from a particular probability
@@ -1123,26 +1108,36 @@ distribution. If a distribution has \(b\) bits of entropy, then it will
 take at least roughly \(2^b\) guesses for an attacker to correctly guess
 a value sampled from this distribution.
 
+\marginnote{\begin{footnotesize}
+
+There are many definitions of entropy, which are all slightly different
+from each other. We are being very informal here, so we will call them
+all \emph{entropy} and not worry about the fine distinctions between the
+different notions.
+
+\end{footnotesize}}
+
 The uniform distribution over 128-bit strings has 128 bits of entropy.
 The distribution from which humans typically choose their passwords has
 much less entropy---empirically, more like 20 bits.
 
 Ideally, we would want all passwords to be equally as likely, from the
 adversary's perspective. (These would be ``high-entropy'' passwords.) If
-a system generated a truly random password for each user, each password
-would be indeed equally likely. But then it becomes very difficult for a
-user to remember their password, much less many random passwords for
-many different services.
+a system generated a truly random \(b\)-bit password for each user, each
+password would be indeed equally likely and it would take the attacker
+roughly \(2^b\) time to guess the user's password. But then it becomes
+very difficult for a user to remember their password.
 
-Typically, people have to remember their passwords, so we let them pick
-their own passwords. When they do, it turns out that many people are
-likely to choose the same password.
+\textbf{Common passwords are easy to guess.} Typically, people have to
+remember their passwords, so we let them pick their own passwords. When
+they do, it turns out that many people are likely to choose the same
+password.
 
-A typical password might be sampled from a distribution with roughly 20
-bits of entropy---if an adversary is able to make \(2^{20}\) guesses at
-the password, they can expect to guess the password correctly. One can
-computer easily make \(2^{20}\) authentication requests to another in a
-few minutes.
+A typical human might sample their password from a distribution with
+roughly 20 bits of entropy---if an adversary is able to make \(2^{20}\)
+guesses at the password, they can expect to guess the password
+correctly. One can computer easily make \(2^{20}\) authentication
+requests to another in a few minutes.
 
 \subsection{Dealing with weak
 passwords}\label{dealing-with-weak-passwords}
@@ -1151,14 +1146,14 @@ passwords}\label{dealing-with-weak-passwords}
 contend with the fact that most passwords are not that difficult for an
 attacker to guess.
 
-In this section, we describe some mitigation strategies: all are flawed,
-but each is better than nothing. The goal of each is to make the
-attacker's job slightly more difficult; by stacking a few of these
-defenses on top of each other, we can substantially strengthen the
-end-to-end system.
+In this section, we describe some common ways to mitigate the fact that
+users pick weak passwords. Each of these mitigations is flawed, but each
+is better than nothing. Each makes the attacker's job slightly more
+difficult; by stacking a few of these defenses on top of each other, we
+can substantially strengthen the end-to-end system.
 
-\textbf{Aggressively limit the number of guesses.} Therefore, when using
-passwords as an authentication mechanism, an authentication system must
+\textbf{Aggressively limit the number of guesses.} When using passwords
+as an authentication mechanism, an authentication system must
 \emph{always} somehow limit the number of password guesses.
 
 For example, some phones allow 10 guesses at the screen-lock PIN before
@@ -1211,11 +1206,11 @@ manager}\label{avoiding-weak-passwords-with-a-password-manager}
 
 When using passwords to authenticate to a website, a user can install a
 password manager on their computer that will generate random passwords
-for them. Since the user doesn't need to remember these passwords, they
-can be sampled truly at random from a high-entropy distribution. Once
-the user authenticates to their computer (using a password, typically),
-they can then access their randomly generated passwords and use them to
-log in to their websites.
+for them. Since the user doesn't need to remember these passwords, the
+password manager can sample these passwords truly at random from a
+high-entropy distribution. Once the user authenticates to their computer
+(using a password, typically), they can then access their randomly
+generated passwords and use them to log in to their websites.
 
 Internally, the password-manager software maintains a table of servers
 and the corresponding passwords:
@@ -1257,13 +1252,13 @@ requiring frequent password changes is worth the benefit.
 
 \end{footnotesize}}
 
-Since, as we have seen, passwords are easy to guess, avoiding
-password-based authentication entirely is the safest option where
-possible. When a system must use passwords for authentication, the
-safest way to store them (e.g., on a server) is using a \emph{salted
-cryptographic password-hashing function}. The goal is to make it as
-difficult as possible for an attacker to recover the plaintext
-passwords, given the hashed values stored on the server.
+Since common passwords are easy to guess, avoiding password-based
+authentication entirely is the safest option where possible. When a
+system must use passwords for authentication, the safest way to store
+them (e.g., on a server) is using a \emph{salted cryptographic
+password-hashing function}. The goal is to make it as difficult as
+possible for an attacker to recover the plaintext passwords, given the
+hashed values stored on the server.
 
 To describe how this works: when a user creates an account with password
 pw, the server chooses a random 128-bit string, called a \emph{salt},
@@ -1450,10 +1445,10 @@ A \emph{phishing} attack is one in which an attacker tricks a user into
 giving away their Gmail password, for example, by creating a website
 that looks, for example, like the \texttt{gmail.com} login page. TOTP
 passwords have a similar vulnerability: an attacker can simply ask the
-user to give her the one-time code by pretend to be tech support, or the
-user's employer, or a customer-service representative. In this setting,
-TOTP codes are slightly better than standard passwords since the
-attacker must use a stolen TOTP code within \$\approx\$30 seconds of
+user to give her the one-time code by pretending to be tech support, or
+the user's employer, or a customer-service representative. In this
+setting, TOTP codes are slightly better than standard passwords since
+the attacker must use a stolen TOTP code within \$\approx\$30 seconds of
 stealing it, which requires a much more sophisticated attack.
 
 Phishing attacks take advantage of the fact that in password- and
@@ -1555,7 +1550,7 @@ have the same hash values (a ``collision'').
 resistant} if it is ``computationally infeasible'' to find two distinct
 strings \(x\) and \(x'\) such that \(H(x) = H(x')\).
 
-Given a long message \(m\), it's hash \(H(m)\) under a
+Given a long message \(m\), its hash \(H(m)\) under a
 collision-resistant hash function is like a short ``fingerprint'' of the
 message---the hash essentially uniquely identifies the message \(m\).
 For that reason, collision-resistant hash functions let you authenticate
@@ -1569,7 +1564,7 @@ files (e.g., software updates) from a far-away server. To speed up this
 process, a company or Internet-service provider may set up local
 \emph{mirrors} of the remote files. Users can then download the files
 from the nearby mirror instead of the far-away server. However, without
-additional security measures, the mirror may server users a different
+additional security measures, the mirror may serve users a different
 file than the one the mirror fetched from the origin server. If the
 mirror is malicious, it can, for example, trick the user into installing
 a backdoored software update. (We saw an attack based on mirrors in
@@ -1654,7 +1649,7 @@ practice and the other mindset we use in theory.
   \tightlist
   \item
     We use a fixed hash function \(H\) with a fixed-length output, which
-    might be as 256 or 512 bits.
+    might be 256 or 512 bits.
   \item
     An ``efficient'' adversary is one that runs in time
     \(\leq 2^{128}\).
@@ -1682,8 +1677,8 @@ constants come from empirical considerations:
 \endlastfoot
 \(2^{30}\) & operations/second on a laptop \\
 \(2^{58}\) & ops/sec on Fugaku supercomputer \\
-\(2^{68}\) & hashes/second on the Bitcoin network (as of Fall 2022) \\
-\(2^{92}\) & hashes/yr on the Bitcoin network \\
+\(2^{70}\) & hashes/second on the Bitcoin network (as of Fall 2026) \\
+\(2^{95}\) & hashes/yr on the Bitcoin network \\
 \(2^{114}\) & hashes required to use enough energy to boil the ocean \\
 \(2^{140}\) & hashes required to use one year of the sun's energy \\
 \end{longtable}
@@ -1745,11 +1740,11 @@ never used in practice.
 \def\labelenumi{\arabic{enumi}.}
 \item
   Build a small collision-resistant hash function on a fixed-size domain
-  \(H_{small}: \bin^{2\lambda} \rightarrow \bin^\lambda\). This step is,
-  to some degree, ``more art than science.'' The standard practice is to
-  design a hash function that defeats all known collision-finding
-  attacks. If no known attack works well, we declare the candidate
-  function to be collision resistant.
+  \(H_\text{small}: \bin^{2\lambda} \rightarrow \bin^\lambda\). This
+  step is, to some degree, ``more art than science.'' The standard
+  practice is to design a hash function that defeats all known
+  collision-finding attacks. If no known attack works well, we declare
+  the candidate function to be collision resistant.
 \item
   Use \(H_{\text{small}}\) to construct
   \(H: \bin^* \rightarrow \bin^\lambda\). This can be done very cleanly
@@ -1793,8 +1788,8 @@ The Merkle-Damgård construction first splits the message into
 \(\lambda\)-sized blocks \([m_1, \ldots, m_n]\) and successively hashes
 them together. In the following pseudocode, the function
 \(\mathsf{ToBlock}\) converts an integer, representing the length of the
-input message in blocks, into a \(\lambda\)-bit string. Then the
-Merkle-Damgård construction is:
+input message in blocks, into a \(\lambda\)-bit string. Then, the
+Merkle-Damgård construction is as in Figure~\ref{fig-md}.
 
 \begin{figure}
 
@@ -1839,8 +1834,8 @@ length up to \(2^{64}-1\) bits.
 
 \end{footnotesize}}
 
-We won't prove it here, but we can use the fact that \(H_{small}\) is
-collision-resistant to prove that \(H\) must also be
+We won't prove it here, but we can use the fact that \(H_\text{small}\)
+is collision-resistant to prove that \(H\) must also be
 collision-resistant. The basic idea of the proof is to show that given a
 collision in \(H\), we can easily compute a collision in
 \(H_{\text{small}}\).
@@ -1852,6 +1847,92 @@ string and start by setting \(b \gets m_1\) and then continue by hashing
 \(m_2, m_3, \dots\). The construction is \emph{not} collision resistant
 if we omit the length block \(\mathsf{ToBlock}(n)\) that we hash in at
 the end.
+
+\textbf{Why the length block is necessary.} Suppose we delete the final
+step \(b \gets H_\text{small}(b, \mathsf{ToBlock}(n))\) from
+Figure~\ref{fig-md}, and call the resulting function \(H^-\). Collisions
+between two messages with the \emph{same} number of blocks still yield
+collisions in \(H_\text{small}\): walking backwards from the last block,
+at each step either the two inputs to \(H_\text{small}\) differ---giving
+a collision---or they agree and we continue. So any attack must use
+messages of \emph{different} lengths, and the job of
+\(\mathsf{ToBlock}(n)\) is exactly to keep those apart.
+
+To see that \(H^-\) really is broken, it is not enough to exhibit an
+attack against some particular hash function: we must show that the
+collision resistance of \(H_\text{small}\) does not \emph{imply} that of
+\(H^-\). We do this by constructing an \(H_\text{small}\) that is
+collision resistant and yet makes \(H^-\) trivially insecure.
+
+\begin{definition}[A collision-resistant \(H_\text{small}\) that breaks
+\(H^-\)]\protect\hypertarget{def-md-no-length}{}\label{def-md-no-length}
+
+Let \(G: \bin^{2\lambda} \rightarrow \bin^{\lambda-1}\) be any
+collision-resistant function, and define
+\(H_\text{small}: \bin^{2\lambda} \rightarrow \bin^{\lambda}\) by \[
+H_\text{small}(b, m) =
+\begin{cases}
+  0^{\lambda} & \text{if } b \| m = 0^{2\lambda},\\
+  1 \| G(b, m) & \text{otherwise.}
+\end{cases}
+\]
+
+\end{definition}
+
+\begin{lemma}[Collision resistance of
+\(H_\text{small}\)]\protect\hypertarget{lem-hsmall-cr}{}\label{lem-hsmall-cr}
+
+If \(G\) is collision resistant, then so is \(H_\text{small}\).
+
+\end{lemma}
+
+\begin{proof}
+Let \(x \neq x'\) satisfy \(H_\text{small}(x) = H_\text{small}(x')\).
+The two outputs have the same leading bit, so either both begin with
+\(1\), in which case \(G(x) = G(x')\) and we have a collision in \(G\);
+or both equal \(0^{\lambda}\), which forces \(x = x' = 0^{2\lambda}\)
+and contradicts \(x \neq x'\).
+\end{proof}
+
+\marginnote{\begin{footnotesize}
+
+This is the only property of \(H_\text{small}\) that the attack uses.
+Any \(H_\text{small}\) with
+\(H_\text{small}(0^\lambda, m^*) = 0^\lambda\) for some block \(m^*\) is
+equally fatal; prepending copies of \(m^*\) then leaves the hash
+unchanged.
+
+\end{footnotesize}}
+
+By construction, \(H_\text{small}\) has a \emph{fixed point at the
+initialization value}:
+\[ H_\text{small}(0^{\lambda}, 0^{\lambda}) = 0^{\lambda}. \] Feeding an
+all-zeros block into the chaining variable while the chaining variable
+still holds the initialization value \(0^{\lambda}\) leaves it
+unchanged. Prepending an all-zeros block to a message therefore adds one
+iteration that does nothing, and so for \emph{every} message \(m\),
+\[ H^-(0^{\lambda} \| m) = H^-(m). \]
+
+Taking \(n = 1\) and \(n = 2\) gives an explicit collision. With
+\(\lambda = 32\) and \(G\) instantiated by truncating SHA-256 to its
+first \(31\) bits, the two messages
+\[ M = \texttt{41414141} \qquad\text{and}\qquad M' = \texttt{00000000} \| \texttt{41414141} \]
+both satisfy \(H^-(M) = H^-(M') = \texttt{d740d7ef}\). Note that \(M\)
+and \(M'\) differ in content, not merely in length. The same trick works
+at any size: for \(n = 2\) versus \(n = 3\),
+\[ \texttt{41414141} \| \texttt{42424242} \qquad\text{and}\qquad \texttt{00000000} \| \texttt{41414141} \| \texttt{42424242} \]
+both hash to \(\texttt{d314a585}\). Degenerately, every all-zeros
+message \(0^{\lambda}, 0^{2\lambda}, 0^{3\lambda}, \dots\) hashes to
+\(0^{\lambda}\).
+
+Restoring the length block repairs all of this. The two messages above
+now reach the final step with the same chaining value
+\(\texttt{d740d7ef}\) but distinct second arguments
+\(\mathsf{ToBlock}(1)\) and \(\mathsf{ToBlock}(2)\), so their hashes
+\(\texttt{ca06ae43}\) and \(\texttt{dae0f489}\) could only coincide if
+\(H_\text{small}\) itself had a collision. In short: a fixed point lets
+messages with different block counts converge on a common chaining
+value, and \(\mathsf{ToBlock}(n)\) separates them again.
 
 \subsection{The Birthday Paradox}\label{the-birthday-paradox}
 
@@ -1865,10 +1946,10 @@ will find a collision among these inputs with constant probability.
 
 An important thing to understand when dealing with hash functions is the
 ``Birthday Paradox,'' which states that given a hash function with
-\(\lambda\)-bit output, you can always find a collision in time
+\(\lambda\)-bit output, you can find a collision in expected time
 \(O(\sqrt{2^\lambda}) = O(2^{\lambda/2})\). So, if you want to force an
-attacker to use at least \(2^{128}\) to find a collision, you must use a
-hash function with at least 256 bits of output.
+attacker to use at least \(2^{128}\) time to find a collision, you must
+use a hash function with at least 256 bits of output.
 
 \subsection{Domain Separation}\label{domain-separation}
 
@@ -1886,6 +1967,9 @@ parameters before hashing, and had parameters such that two different
 intents had the same concatenation (\citeproc{ref-flickr}{Duong and
 Rizzo 2009}).
 
+A better, though more expensive, way is
+\[ H_2(x, y) = H(H(x) \| H(y)). \]
+
 \subsection{Length-Extension}\label{length-extension}
 
 Recall the concept of Message Authentication Codes (MAC) from the last
@@ -1894,16 +1978,62 @@ the message was not changed. (We will see the formal definition in
 Chapter~\ref{sec-mac}.)
 
 \textbf{Bad idea.} Poorly designed software uses
-\(\MAC(k, m) = H(k \| m)\) as a very simple construction of a MAC.
-However, this construction has an easy attack---given \(\MAC(k, m)\), it
-is easy to compute \(\MAC(k, m\|m')\) without knowing the key \(k\) if
-\(H\) is a hash function built with the Merkle-Damgård construction. To
-do this, the attacker hashes the output of \(\MAC(k, m)\) with two more
-blocks---a new message \(m''\) and another length block. Now, we have
-computed \(\MAC(k, m\|m')\) where \(m'\) is the original length block
-plus some custom message without knowing the key \(k\).
+\(\MAC(k, m) = H(k \| m)\) as a very simple construction of a MAC. If
+\(H\) is built with the Merkle-Damgård construction, this has an easy
+attack: an adversary who sees a single valid tag can forge a tag on a
+\emph{longer} message, without ever learning the key \(k\).
 
-This problem here is that we were using a hash function that was
+The reason is that a Merkle-Damgård hash \emph{is} its own chaining
+variable. Write \(n\) for the number of blocks in \(k \| m\), and let
+\[ t = \MAC(k, m) = H(k \| m). \] By Figure~\ref{fig-md}, \(t\) is
+exactly the value of the chaining variable \(b\) after the construction
+has absorbed the \(n\) message blocks and the final length block
+\(\mathsf{ToBlock}(n)\). Nothing about \(t\) is secret or opaque: it is
+a snapshot of the entire internal state. An attacker who sets
+\(b \gets t\) and keeps iterating \(H_\text{small}\) is simply resuming
+the hash computation where the honest party stopped.
+
+\textbf{The attack.} Let \(m''\) be any suffix the attacker wishes to
+append, padded to a whole number of blocks. Given \(m\) and \(t\), the
+attacker computes
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \(b \gets H_\text{small}(t, m'')\), and
+\item
+  \(b \gets H_\text{small}(b, \mathsf{ToBlock}(n+2))\),
+\end{enumerate}
+
+and outputs \(b\). This is a valid tag on a message the attacker never
+had the key to authenticate.
+
+\textbf{Which message was forged?} Here is the subtle point. The
+attacker resumed the chain \emph{after} the length block
+\(\mathsf{ToBlock}(n)\) had already been absorbed, so that block is now
+an unavoidable part of the string being hashed. What the attacker has
+computed is \[
+b = H\big(\underbrace{k \| m}_{\text{original}} \;\|\;
+    \underbrace{\mathsf{ToBlock}(n)}_{\text{forced glue}} \;\|\;
+    \underbrace{m''}_{\text{attacker's choice}}\big)
+  \;=\; \MAC(k, m \| m'),
+\] where \[ m' = \mathsf{ToBlock}(n) \| m''. \] So \(m''\) is not an
+alternative name for \(m'\): it is the tail of it. The attacker chooses
+\(m''\) freely but cannot avoid the glue block that precedes it, which
+is why the forgery is a tag on \(m \| m'\) rather than on the cleaner
+\(m \| m''\). In practice this is rarely an obstacle---the glue is a
+short run of bytes, and many formats (query strings, log lines,
+serialized records) will happily ignore or tolerate it.
+
+Two details are worth noting. First, the attacker must know \(|k|\),
+though not \(k\) itself, since \(n\) depends on the key's length; in
+practice the key length is public, or the attacker simply tries each
+plausible value. Second, the attack needs no collision in \(H\) and no
+weakness in \(H_\text{small}\) whatsoever---it works against a perfectly
+good compression function.
+
+The problem here is that we were using a hash function that was
 \emph{only} guaranteed to be collision resistant, but we assumed that it
 had other properties (such as that it is guaranteed to be difficult to
 compute the hash of an extension of the original message).
@@ -1922,7 +2052,7 @@ Figure~\ref{fig-merkle-damgard}.
 \caption{\label{fig-merkle-damgard-extension}Sketch of the extension
 attack on the Merkle-Damgård construction, starting with a hash of
 \(m_1 || m_2 || \ldots || m_n\) to compute the hash of
-\(m_1 || m_2 || \ldots || m_n || \textsf{ToBlock}(n) || x\).}
+\(m_1 || m_2 || \ldots || m_n || \textsf{ToBlock}(n) || m''\).}
 
 \end{figure}%
 
@@ -1984,10 +2114,11 @@ a useful one:
 adaptive chosen message
 attacks]\protect\hypertarget{def-mac-sec}{}\label{def-mac-sec}
 
-A MAC \(\MAC\) over key space \(\calK\) and message space
-\(\mathcal{M}\) is secure (existentially unforgeable against adaptive
-chosen message attacks) if any poly-time adversary \(\mathcal{A}\) wins
-the following game with at most negligible probability:
+A message authentication code \(\MAC\) over key space \(\calK\) and
+message space \(\mathcal{M}\) is secure (existentially unforgeable
+against adaptive chosen message attacks) if any poly-time adversary
+\(\mathcal{A}\) wins the following game with at most negligible
+probability:
 
 \marginnote{\begin{footnotesize}
 
@@ -2038,10 +2169,10 @@ and the adversary's power.
 The adversary's goal in this definition is to compute a valid MAC of
 \emph{any} message \(m\in \mathcal{M}\) of its choice. It's not entirely
 obvious why we care about the adversary producing a valid MAC on
-\emph{any} message: ``If the adversary MACs a message that is jibberish,
+\emph{any} message: ``If the adversary MACs a message that is gibberish,
 they are unlikely to be able to do any harm with it,'' you might think.
 But there will certainly be applications that authenticate messages that
-violate whatever definition of ``non-jibberish'' we define. So allowing
+violate whatever definition of ``non-gibberish'' we define. So allowing
 the adversary to forge a MAC tag on any message makes the definition as
 broadly applicable as possible.
 
@@ -2264,13 +2395,18 @@ MAC}\label{macs-for-long-messages-cipher-block-chaining-mac}
 \marginnote{\begin{footnotesize}
 
 Applying the PRF to the last block using an independent random key is
-important. If we do not use a new key, an adversary can mount a
-length-extension attack. That is, if the adversary asks for
-\(t = \mathsf{MAC}(k, m_1)\) and \(t' = \mathsf{MAC}(k, t)\), \(t'\) is
-also a valid key for the original message with two zero blocks attached
-\(\mathsf{MAC}(k, m_1 \| 0 \| 0)\). The chain of AES applications
-becomes equivalent, since zero blocks are equivalent to skipping the XOR
-and adding AES applications.
+important. If we use the same key \(k\), an adversary can mount a
+length-extension attack. Writing \(E(x) = F(k,x)\), an \(n\)-block
+message costs \(n+1\) applications of \(E\). The adversary queries the
+one-block message \(m_1\), receiving \(t = E(E(m_1))\), and then queries
+the one-block message whose contents are the bit string \(t\), receiving
+\(t' = E(E(t))\). But
+\(\mathsf{MAC}(k, m_1 \| 0 \| 0) = E(E(E(E(m_1)))) = E(E(t)) = t'\), so
+\(t'\) is a valid tag on a message the adversary never queried. Two zero
+blocks are needed because the second query contributes two applications
+of \(E\): one for its message block and one for its final step. A zero
+block is free to append since \(0 \oplus t_{i-1} = t_{i-1}\), so it
+passes the chaining value through and adds one more \(E\).
 
 \end{footnotesize}}
 
@@ -2359,7 +2495,7 @@ the adversary does not know what key will be used.
 
 One simple and practical construction of a universal hash function is
 based on polynomials. Given a long message \(m\), break it up into
-fixed-size chunks \(m_0, m_1, \ldots, m_{l-1}\). Then, the hash of that
+fixed-size chunks \(m_1, m_2, \ldots, m_{l}\). Then, the hash of that
 message is defined as:
 
 \marginnote{\begin{footnotesize}
@@ -2370,9 +2506,20 @@ long.
 \end{footnotesize}}
 
 \[
-H(k, m_0 || m_1 || \ldots || m_{l-1}) = (m_0 + m_1 k + m_2 k^2 +
-  \ldots + m_{l-1} k^{l-1}) \mod p
+H(k, m_1 || m_2 || \ldots || m_{l}) = (m_1 + m_2 k + m_3 k^2 +
+  \ldots + m_{l} k^{l-1} + k^{l}) \mod p
 \]
+
+\marginnote{\begin{footnotesize}
+
+The final monic term \(k^l\) is essential, even though it involves no
+message block. Without it, a message and the same message with trailing
+zero chunks appended hash to the same value for \emph{every} key: the
+added chunks contribute nothing to the sum. The term \(k^l\) makes the
+map from messages to polynomials injective, since the degree records the
+number of chunks and the remaining coefficients record their contents.
+
+\end{footnotesize}}
 
 We can give some intuition for why \(H\) is a universal hash function
 (i.e., collision-resistant for a randomly chosen key). In order for a
@@ -2382,15 +2529,20 @@ pair of messages \(m\) and \(m'\) to collide, it must mean that
 polynomial, this means that
 
 \[
-(m_0 - m'_0) + (m_1 - m'_1) k + (m_2 - m'_2) k^2 + \ldots + (m_{l-1} - m'_{l-1}) k^{l-1} = 0
+(m_1 - m'_1) + (m_2 - m'_2) k + \ldots + (m_{l} - m'_{l}) k^{l-1}
+  + (k^{l} - k^{l'}) = 0
 \]
 
-which is another way of saying that \(k\) is a root of that
-degree-\(l-1\) polynomial. We know that there can be at most \(l-1\)
-roots of a degree-\(l-1\) polynomial, but there are \(p \approx 2^n\)
-possible choices for \(k\), so the probability that our randomly-chosen
-\(k\) happens to be one of those roots is \(\frac{l-1}{p}\), which is
-negligible.
+which is another way of saying that \(k\) is a root of that polynomial.
+That polynomial is not identically zero. If the two messages have the
+same number of chunks \(l = l'\), the two monic terms cancel and some
+coefficient \(m_i - m'_i\) is non-zero because \(m \neq m'\). If instead
+\(l < l'\), the term \(-k^{l'}\) survives and the polynomial has degree
+exactly \(l'\). Either way we have a non-zero polynomial of degree at
+most \(\max(l, l')\), so it has at most that many roots, but there are
+\(p \approx 2^n\) possible choices for \(k\). The probability that our
+randomly-chosen \(k\) happens to be one of those roots is therefore at
+most \(\frac{\max(l,l')}{p}\), which is negligible.
 
 \textbf{MAC construction.}
 
@@ -2441,19 +2593,17 @@ The Carter-Wegman MAC construction is then:
   \((m_1, \dots, m_{\ell}) \gets m \in \Z_p^\ell\).
 \item
   Compute
-  \(M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 \cdots + m_{\ell} v^{\ell} \in \Z_p\).
+  \(M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 + \cdots + m_{\ell} v^{\ell} + v^{\ell+1} \in \Z_p\).
 
   \marginnote{\begin{footnotesize}
 
   Essentially we are viewing the blocks of the message \(m\) as
-  coefficients of a degree-\(t\) polynomial \(M(\cdot)\). We then
+  coefficients of a degree-\((\ell+1)\) polynomial \(M(\cdot)\). We then
   evaluate this polynomial at the secret point \(v\) determined by the
-  MAC key.
+  MAC key. The trailing monic term \(v^{\ell+1}\) carries no message
+  block; its job is to record the message length in the degree.
 
   \end{footnotesize}}
-
-  \todobox{\textbf{TODO (HCG):} Check the definition of the message
-  polynomial \(M\). Should there be an additional \(v^{t+1}\) monomial?}
 \item
   Sample a nonce \(r \getsr \Z_p\).
 \item
@@ -2472,12 +2622,27 @@ The Carter-Wegman MAC construction is then:
   \((m_1, \dots, m_{\ell}) \gets m \in \Z_p^\ell\).
 \item
   Compute
-  \(M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 + \cdots + m_{\ell} v^{\ell}\in \Z_p\).
+  \(M(v) \gets m_1 v + m_2 v^2 + m_3 v^3 + \cdots + m_{\ell} v^{\ell} + v^{\ell+1} \in \Z_p\).
 \item
   Parse the tag \((r, z) \gets t \in \Z^2_p\).
 \item
   Output ``1'' if and only if \(z - F(k, r) = M(v)\).
 \end{itemize}
+
+\textbf{Why the trailing monomial?} Suppose we had defined
+\(M(v) = m_1 v + \dots + m_{\ell} v^{\ell}\), without the final
+\(v^{\ell+1}\) term. Then appending a zero block to a message would
+leave the polynomial unchanged, and the scheme would be forgeable after
+a single query. An adversary asks for a tag on the one-block message
+\(m = (m_1)\) and receives \(t = (r, z)\) with \(z = F(k,r) + m_1 v\).
+The message \(m^* = (m_1, 0) \neq m\) has \[
+  M^*(v) = m_1 v + 0 \cdot v^2 = m_1 v = M(v),
+\] so \(\MACVerify(k, m^*, t)\) accepts the very same tag, with
+probability \(1\). More generally \(m\) and \(m \| 0^j\) would collide
+for every \(j\). The trailing monic term rules this out by making the
+map from messages to polynomials injective: the degree of \(M\)
+determines \(\ell\), and the remaining coefficients determine
+\(m_1, \dots, m_{\ell}\).
 
 \textbf{Security intuition.} The security argument here goes as follows:
 
@@ -2496,15 +2661,14 @@ textbook, \emph{A Graduate Course in Applied Cryptography}, Section 7.4.
 \item
   Next, we show that as long as the \(\MACSign\) algorithm never samples
   the same nonce \(r\) twice, the masking values \(F(k,r)\) are
-  independent random values that complete hide the values \(M(v)\). So,
-  the adversary learns no information on the secret point \(v\) by
+  independent random values that completely hide the values \(M(v)\).
+  So, the adversary learns no information on the secret point \(v\) by
   making MAC queries.
 \item
   Now, say that the adversary finds a forged message-tag pair
   \((m^*, t^*)\). There are two cases:
 
   \begin{itemize}
-  \tightlist
   \item
     Either the forgery uses a fresh random nonce \(r^*\) that did not
     appear as the response to any of the adversary's MAC queries. In
@@ -2512,24 +2676,40 @@ textbook, \emph{A Graduate Course in Applied Cryptography}, Section 7.4.
   \item
     Alternatively, the forger could use a random nonce \(r^*\) that is
     equal to the nonce \(r\) returned from one of the adversary's MAC
-    queries. In this case, we have the following relations, where
-    message \(m\) polynomial \(M\) was the message the adversary queried
-    of the challenger: \[\begin{aligned}
-      F(k, r) &= M(v) - z\\
-      F(k, r) &= M^*(v) - z^*\\
-      0 &= \big(M(v) - M^*(v)\big) + (z - z^*).
-    \end{aligned}\] Since \(m \neq m^*\), we know \(z \neq z^*\). So
-    \((M(\cdot) - M^*(\cdot)) + (z^* - z)\) is a non-zero polynomial of
-    degree at most \(t\). Since such a polynomial can have at most
-    \(\ell \leq L\) zeros in \(\Z_p\), and since the adversaries view is
+    queries. In this case, we have the following relations, where \(M\)
+    is the polynomial of the message \(m\) that the adversary queried of
+    the challenger: \[\begin{aligned}
+      F(k, r) &= z - M(v)\\
+      F(k, r) &= z^* - M^*(v)\\
+      0 &= \big(M(v) - M^*(v)\big) + (z^* - z).
+    \end{aligned}\] Since \(m \neq m^*\) and the message encoding is
+    injective, \(M(\cdot)\) and \(M^*(\cdot)\) are distinct polynomials,
+    so \(\big(M(\cdot) - M^*(\cdot)\big) + (z^* - z)\) is not
+    identically zero.
+
+    \marginnote{\begin{footnotesize}
+
+    The added constant \(z^* - z\) cannot cancel
+    \(M(\cdot) - M^*(\cdot)\), because neither \(M\) nor \(M^*\) has a
+    constant term, so their difference is never a non-zero constant.
+
+    \end{footnotesize}}
+
+    It is a non-zero polynomial of degree at most \(L+1\), so it has at
+    most \(L+1\) roots in \(\Z_p\). Since the adversary's view is
     independent of the evaluation point \(v \in \Z_p\), the probability
-    that the adversary's forgery is valid is at most \(\ell/p\).
+    that the adversary's forgery is valid is at most \((L+1)/p\).
   \end{itemize}
 
   In either case, the adversary's probability of forging is
   \(O(L)/p = \poly(\lambda) \cdot \negl(\lambda) = \negl(\lambda)\) on
   security parameter \(\lambda\).
 \end{itemize}
+
+Note that nonce reuse is catastrophic. Say two distinct messages
+\(m \neq m'\) that produce \((r, z)\) and \((r, z')\), where
+\(z = F(k,r) + M(v)\) and \(z' = F(k,r) + M'(v)\). The adversary is able
+to discover the secret value \(v\), and then forge any message.
 
 \chapter{Digital Signatures}\label{sec-sig}
 
@@ -2606,7 +2786,8 @@ Correctness]\protect\hypertarget{def-sig-correctness}{}\label{def-sig-correctnes
 
 A digital-signature scheme \((\Gen, \Sign, \Ver)\) is \emph{correct} if,
 for all messages \(m \in \calM\):
-\[ \Pr\big[\Ver(\vk, m, \Sign(\sk, m)) = 1 \colon (\sk, \vk) \gets \Gen(\lambda) \big] = 1. \]
+\[ \Pr\big[\Ver(\vk, m, \sigma) = 1 \colon (\sk, \vk) \gets \Gen(\lambda),\;
+   \sigma \gets \Sign(\sk, m) \big] = 1. \]
 
 \end{definition}
 
@@ -2614,7 +2795,10 @@ The standard security notion for digital signatures is very similar to
 that for MACs (Definition~\ref{def-mac-sec}). The only difference here
 is that a digital-signature scheme splits the single secret MAC key into
 two keys: a secret signing key and a public verification key. Otherwise
-the definition is essentially identical.
+the definition is essentially identical. Note that the probability is
+over the internal randomness of \(\Sign\); \(m\) can be adversarially
+chosen, and we require correctness of every pair of keys generated by
+\(\Gen\).
 
 \begin{definition}[Digital signatures: Security -- existential
 unforgeability under chosen message
@@ -2690,7 +2874,7 @@ secure against quantum adversaries; see
 
 \end{footnotesize}}
 
-We will construct this scheme in three stages:
+We will construct this scheme in four stages:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
@@ -2698,7 +2882,7 @@ We will construct this scheme in three stages:
   Construct a signature scheme for signing a \emph{single bit}.
 \item
   Construct a \emph{one-time secure} signature scheme for signing a
-  \emph{fixed length} messages. With this scheme, an attacker who sees
+  \emph{fixed length} message. With this scheme, an attacker who sees
   two signatures under the same signing key can forge signatures. In
   addition, the secret signing key for this scheme will be larger than
   the size of the message being signed.
@@ -2877,7 +3061,7 @@ our assumptions, so the first adversary cannot exist.
 \begin{proof}
 Suppose there exists an adversary \(\A\) that wins the one-time-security
 game of Definition~\ref{def-sig-once} with non-negligible probability
-\(\epsilon\). That is, the adversary can produces \((m^*, \sig^*)\) such
+\(\gamma\). That is, the adversary can produces \((m^*, \sig^*)\) such
 that \(\Ver(\vk, m^*, \sig^*) = 1\) and \(m \neq m^*\) given only
 \(\sig = \Sign(\sk, m)\). We can then construct an adversary \(\B\) that
 can use \(\A\) to invert the one-way function.
@@ -2978,14 +3162,14 @@ often. Since algorithm \(\calB\) chooses the values \(i^*\) and
 The events that \(\calA\) breaks the signature scheme and that either of
 these failures occur are all \emph{independent}. Then if \(\calA\)
 breaks the one-time security of the Lamport signature scheme with
-probability \(\epsilon\), our one-way-function adversary \(\calB\)
-inverts the one-way function with probability
-\[ \epsilon_\text{one-way} = \epsilon \cdot \frac{1}{2} \cdot \frac{1}{n}.\]
+probability \(\gamma\), our one-way-function adversary \(\calB\) inverts
+the one-way function with probability
+\[ \gamma_\text{one-way} = \gamma \cdot \frac{1}{2} \cdot \frac{1}{n}.\]
 
 The probability of either bad is at most \(1/2 + 1/n\), by the union
 bound. Therefore if algorithm \(\calA\) breaks one-time security of
-Lamport's scheme with probability \(\epsilon\), If \(\epsilon\) is
-non-negligible, then \(\epsilon_\text{one-way} = \epsilon/2n\) is also
+Lamport's scheme with probability \(\gamma\), and if \(\gamma\) is
+non-negligible, then \(\gamma_\text{one-way} = \gamma/2n\) is also
 non-negligible, and we have a contradiction.
 \end{proof}
 
@@ -3036,7 +3220,7 @@ the one in Section~\ref{sec-lamport}), there exists a signature scheme
   original message.
 \end{itemize}
 
-\textbf{Security Intuition.} Suppose that there exists an efficiency
+\textbf{Security Intuition.} Suppose that there exists an efficient
 adversary that breaks \((\Gen', \Sign', \Ver')\). In particular, given
 \(((m_1, \sig_1, \ldots, (m_t, \sig_t))\), the adversary is able to
 construct a valid message-signature pair \((m^*, \sig^*)\) such that
@@ -3163,7 +3347,8 @@ probability of accidentally choosing the same leaf twice is negligible
 (\(2^{-128}\)). The signing key in an intermediate nodes (and in the
 root) will be used to sign the (public) verification keys of the two
 corresponding child nodes in the tree. Figure~\ref{fig-lamport-tree}
-shows a sketch of this tree.
+shows a sketch of this tree. We write \(\varepsilon\) for the empty
+string, signifying the root of the tree.
 
 \begin{figure}
 
@@ -3219,6 +3404,20 @@ blocks, we will construct a many-time secure signature scheme
 \(\zo^\ast\)), where all of the algorithms are efficient
 (\(\poly(\cdot)\) running time).
 
+\marginnote{\begin{footnotesize}
+
+Two details matter here. First, node labels have varying lengths, so the
+PRF input must encode them injectively---otherwise \(\varepsilon\),
+\(0\), and \(00\) collide and the root shares a one-time key with its
+descendants, which is a total break. Second, a single PRF output is far
+shorter than the randomness \(\Gen_0\) needs (e.g., in the Lamport
+scheme), so \(F(k,s)\) is used as a seed for a pseudorandom number
+generator, or each component is derived separately as
+\(F(k, \langle s \rangle \| \langle i
+\rangle \| b)\).
+
+\end{footnotesize}}
+
 Our construction is as follows:
 
 \begin{tcolorbox}[enhanced jigsaw, arc=.35mm, bottomrule=.15mm, breakable, colback=white, colframe=quarto-callout-note-color-frame, left=2mm, leftrule=.75mm, opacityback=0, rightrule=.15mm, toprule=.15mm]
@@ -3234,9 +3433,9 @@ Our construction is as follows:
     Sample a fresh PRF key \(k \getsr \calK\).
   \item
     Set
-    \((\sk_\epsilon, \vk_\epsilon) \gets \Gen_0^{F(k, \text{“”})}()\).
+    \((\sk_\varepsilon, \vk_\varepsilon) \gets \Gen_0^{F(k, \varepsilon)}()\).
   \item
-    Output \((\sk, \vk) \gets (k, \vk_\epsilon)\).
+    Output \((\sk, \vk) \gets (k, \vk_\varepsilon)\).
   \end{itemize}
 \item
   \(\Sign_t(k, m) \to \sigma\):
@@ -3263,7 +3462,7 @@ Our construction is as follows:
     \(\sigma \gets (r, \sigma_\varepsilon, \vk_0, \vk_1, \sigma_{r_1}, \vk_{r_1 0}, \vk_{r_1 1}, \ldots, \sigma_r)\).
   \end{itemize}
 \item
-  \(\Ver_t(\vk_\epsilon, m, \sigma) \to \zo\):
+  \(\Ver_t(\vk_\varepsilon, m, \sigma) \to \zo\):
 
   \begin{itemize}
   \tightlist
@@ -3276,9 +3475,9 @@ Our construction is as follows:
     \begin{itemize}
     \tightlist
     \item
-      \(\Ver_0(\vk_r, \sigma_r, \text{SHA256}(m)) = 1\) and
+      \(\Ver_0(\vk_r, \text{SHA256}(m), \sigma_r) = 1\) and
     \item
-      \(\Ver_0(\vk_x, \sigma_x, \vk_{x0} || \vk_{x1}) = 1\) for every
+      \(\Ver_0(\vk_x, \vk_{x0} || \vk_{x1}, \sigma_x) = 1\) for every
       prefix \(x\) of \(r\) (from \(\varepsilon\) to
       \(r_1 r_2 \ldots r_{255}\)).
     \end{itemize}
@@ -3287,10 +3486,20 @@ Our construction is as follows:
 
 \end{tcolorbox}
 
+A final note is that when multiple messages are signed, the paths to the
+two different leaves are shared from the root. But the shared path from
+the root (up until divergence) will sign the \emph{same} strings, thanks
+to determinism. Therefore, the one-time signing requirement is not
+violated. This is Goldreich's construction; the practical descendant is
+SPHINCS+, which appears in the table below.
+
 \section{Choosing Signature Schemes}\label{choosing-signature-schemes}
 
 The signature scheme we presented in Section~\ref{sec-sig-manytime} is
-not particularly efficient in terms of signature size.
+not at all efficient in terms of signature size. It has been improved
+dramatically in the SPHINCS+ construction that we will not cover.
+SPHINCS+ is not particularly efficient either, but has received some use
+because it is plausibly post-quantum secure.
 
 \begin{longtable}[]{@{}
   >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
@@ -3468,11 +3677,23 @@ each choice of \(\lambda\). This way the input space can grow with
   inverse \(x \in \calX\).
 \end{itemize}
 
-\textbf{Correctness.} Informally, we want that for keypairs
-\((\sk, \pk)\) output by \(\Gen\), we have that \(F(\pk, \cdot)\) and
-\(I(\sk, \cdot)\) are inverses of each other. More formally, for all
+\textbf{Correctness.} We want \(F(\pk, \cdot)\) and \(I(\sk, \cdot)\) to
+be mutually inverse permutations of \(\calX\). Formally, for all
 \(\lambda \in \N\), \((\sk, \pk) \gets \Gen(1^\lambda)\), and
-\(x \in \calX\), we require: \[ I(\sk, F(\pk, x))= x.\]
+\(x, y \in \calX\):
+\[ I(\sk, F(\pk, x)) = x \qquad\text{and}\qquad F(\pk, I(\sk, y)) = y. \]
+
+\marginnote{\begin{footnotesize}
+
+The second identity follows from the first when \(\calX\) is finite:
+\(I \circ F = \mathrm{id}\) forces \(F\) to be injective, hence a
+bijection on a finite set, so \(I = F^{-1}\) and the two compose to the
+identity in either order. We state both because the signature
+construction below needs the second, and because for a trapdoor one-way
+\emph{function} --- where \(F\) need not be onto --- the second can
+fail.
+
+\end{footnotesize}}
 
 \textbf{Security.} Security requires that \(F(\pk, \cdot)\) is hard to
 invert (in the sense of a one-way function) on a randomly sampled input
@@ -3575,14 +3796,11 @@ inverting \(F\) on an attacker-chosen point in its co-domain, which
 could be easy.
 
 \textbf{Correctness.} For all \(\lambda \in \N\),
-\((\sk, \pk) \gets \Gen(1^\lambda)\), and \(m \in \zo^*\), we have:
-\[\begin{aligned}
-\Ver(\pk, m, \Sign(\sk, m)) &= 1\{ F(\pk, I(\sk, H(m))) = H(m) \}\\
-&= 1\{ I(\sk, F(\pk, I(\sk, H(m)))) = I(\sk, H(m)) \}
-\end{aligned}\] and by correctness of the trapdoor one-way permutation:
-\[\begin{aligned}
-&= 1\{ I(\sk, H(m)) = I(\sk, H(m)) \} = 1.
-\end{aligned}\]
+\((\sk, \pk) \gets \Gen(1^\lambda)\) and \(m \in \zo^*\), the signature
+is \(\sigma = I(\sk, H(m))\), and verification recomputes \(H(m)\) and
+checks \(F(\pk, \sigma) = F(\pk, I(\sk, H(m))) = H(m)\), which holds by
+correctness of the trapdoor one-way permutation. Hence,
+\(\Ver(\pk, m, \Sign(\sk, m)) = 1\).
 
 \textbf{Security.} The intuition here is that if the adversary cannot
 invert \(F\), it cannot find the preimage of \(H(m)\) under \(F\) for
@@ -3624,7 +3842,8 @@ choices of \(e\).
 
     Standard RSA implementations require the weaker condition that the
     public exponent \(e\) shares no prime factors with \(p-1\) and
-    \(q-1\). Using the stronger condition here simplifies the inversion
+    \(q-1\). Using the stronger condition
+    \(p \equiv q \equiv 4 \pmod 5\) here simplifies the inversion
     algorithm.
 
     \end{footnotesize}}
@@ -3684,7 +3903,7 @@ key.
 invert?}\label{why-should-the-rsa-function-be-hard-to-invert}
 
 To invert the RSA function, the attacker's is effectively given a value
-\(y \getsr \Z_N\) and must find a value \(x\) such that
+\(y \getsr \Z^*_N\) and must find a value \(x\) such that
 \(x^5 = y \bmod N\). Or, put another way, the attacker's task is
 essentially the following:
 
@@ -3692,13 +3911,26 @@ essentially the following:
 \tightlist
 \item
   \textbf{Given:} A polynomial \(p(X) \deq X^5 - y \in \Z_N[X]\), for
-  \(y \getsr \Z_N\).
+  \(y \getsr \Z^*_N\).
 \item
-  \textbf{Find:} A value \(x \in \Z_N\) such that \(p(x) = 0 \in \Z_N\).
+  \textbf{Find:} A value \(x \in \Z^*_N\) such that
+  \(p(x) = 0 \in \Z^*_N\).
 \end{itemize}
 
 So the attacker must find the root of a polynomial modulo a composite
 integer \(N\).
+
+\marginnote{\begin{footnotesize}
+
+We work in \(\Z_N^*\) rather than \(\Z_N\) because \(x \mapsto x^5\) is
+a permutation only on the elements of \(\Z_N^*\). If \(y\) is a
+non-unit---say \(y = p\)---the equation \(x^5 = y \bmod N\) has no
+solution at all, so ``find a root'' would not be a well-posed task. This
+matters only for a \(\approx 2^{-\lambda+1}\) fraction of \(\Z_N\), and
+an attacker who stumbled on such a \(y\) could recover \(p\) from
+\(\gcd(y, N)\) and factor \(N\) outright.
+
+\end{footnotesize}}
 
 The premise of RSA-style cryptosystems is that we only know of
 essentially two ways to find roots of polynomials modulo \(N\):
@@ -3706,15 +3938,20 @@ essentially two ways to find roots of polynomials modulo \(N\):
 \begin{itemize}
 \item
   \textbf{Factor \(N\) into primes} and find a root modulo each of the
-  primes. (We will say more on this in a moment.) Since the best
-  algorithms for factoring run in time roughly
-  \(2^{\sqrt[3]{\log N}} = 2^{\sqrt[3]{\lambda}}\), this approach is
+  primes. (We will say more on this in a moment.) Since the best known
+  algorithm, the general number field sieve, runs in time
+  \[ \exp\Big( \big(\sqrt[3]{64/9} + o(1)\big)
+     (\ln N)^{1/3} (\ln \ln N)^{2/3} \Big), \] this approach is
   infeasible at present without knowing the factorization of \(N\).
 
   \marginnote{\begin{footnotesize}
 
-  In Appendix~\ref{sec-fact} we present a factoring algorithm that runs
-  in sub-exponential time \(2^{\sqrt{\log N \log \log N}}\).
+  For a \(2048\)-bit modulus \(N\) (that is, \(\lambda = 1024\)-bit
+  primes) this is roughly \(2^{117}\) operations. The largest RSA
+  modulus factored to date is \(829\) bits, which took about \(2700\)
+  core-years in 2020. Note that \(\log N = 2\lambda\), so doubling the
+  prime size more than doubles the security level: a \(4096\)-bit
+  modulus costs about \(2^{157}\).
 
   \end{footnotesize}}
 \item
@@ -3738,14 +3975,15 @@ essentially two ways to find roots of polynomials modulo \(N\):
   \marginnote{\begin{footnotesize}
 
   There are many clever attacks for solving polynomial equations modulo
-  composites that work in certain special cases, but for most purposes
-  these are the two known attacks.
+  composites that work in certain special cases. The most important of
+  these is Coppersmith's method (Section~\ref{sec-coppersmith}), which
+  applies whenever the root we are looking for is small.
 
   \end{footnotesize}}
 
   When \(y \getsr \Z_N\), the probability that \(y\) is a perfect 5-th
   power, and thus that there is an integral root to \(X^5 - y\), is
-  \(\sqrt[5]{N}/N \approx 2^{-4\lambda/5}\), which is negligible in the
+  \(\sqrt[5]{N}/N \approx 2^{-8\lambda/5}\), which is negligible in the
   security parameter \(\lambda\). So solving this equation over the
   integers is a dead end.
 
@@ -3757,6 +3995,81 @@ essentially two ways to find roots of polynomials modulo \(N\):
   But for RSA-type polynomials, the answer is unclear.
 \end{itemize}
 
+\subsection{Coppersmith's method: finding small
+roots}\label{sec-coppersmith}
+
+There is a third way to find roots of a polynomial modulo \(N\), which
+works without factoring \(N\) but only when the root we seek is
+\emph{small}. (\citeproc{ref-Coppersmith97}{Coppersmith 1997})
+
+\begin{theorem}[Coppersmith]\protect\hypertarget{thm-coppersmith}{}\label{thm-coppersmith}
+
+Let \(f(X) \in \Z_N[X]\) be a monic polynomial of degree \(d\). Then
+there is a polynomial-time algorithm that finds all integers \(x_0\)
+with \(f(x_0) \equiv 0 \bmod N\) and \[ |x_0| < N^{1/d}. \]
+
+\end{theorem}
+
+The method builds a lattice whose vectors correspond to polynomials that
+vanish at \(x_0\) modulo a high power \(N^k\), and then runs the LLL
+lattice-reduction algorithm (\citeproc{ref-LLL82}{Lenstra et al. 1982})
+to find a combination \(g\) whose coefficients are so small that
+\(|g(x_0)| < N^k\). But \(g(x_0)\) is also a multiple of \(N^k\), and
+the only multiple of \(N^k\) smaller in absolute value than \(N^k\) is
+zero. So \(g(x_0) = 0\) holds \emph{over the integers}, and we can
+recover \(x_0\) by ordinary root-finding.
+
+\marginnote{\begin{footnotesize}
+
+In one sentence: lattice reduction converts a modular equation into an
+integer equation, and integer equations we know how to solve. The bound
+\(N^{1/d}\) is essentially the point at which \(f(x_0)\) stops wrapping
+around the modulus.
+
+\end{footnotesize}}
+
+The theorem also applies when \(x_0\) is close to a \emph{known} value
+rather than close to zero: substituting \(X = \tilde{x} + X'\) for a
+known guess \(\tilde x\) turns ``\(x_0\) is within \(N^{1/d}\) of
+\(\tilde x\)'' into ``the root of the shifted polynomial is small.''
+This is what makes the method dangerous in practice, and it has several
+consequences for RSA.
+
+\begin{itemize}
+\item
+  \textbf{Partial knowledge of a prime factor is fatal.} Given roughly
+  the top half of the bits of \(p\)---that is, \(p = \tilde p +
+  x_0\) with \(\tilde p\) known and \(|x_0| < N^{1/4}\)---one can factor
+  \(N\) in polynomial time. RSA keys tolerate no partial leakage of
+  their primes whatsoever.
+\item
+  \textbf{Structured primes are fatal.} The ROCA vulnerability
+  (\citeproc{ref-ROCA17}{Nemec et al. 2017a}) concerned a widely
+  deployed library that generated primes of the special form
+  \(p = k \cdot M +
+  (65537^a \bmod M)\) for a fixed constant \(M\). That structure leaves
+  few enough unknowns that Coppersmith's method factors the modulus:
+  1024-bit keys fell in a few hundred CPU-hours. Affected keys were
+  identifiable \emph{from the public modulus alone}, and the flaw forced
+  a mass revocation of national identity certificates.
+\item
+  \textbf{A small private exponent is fatal.} If \(d <
+  N^{0.292}\), the modulus can be factored (\citeproc{ref-BD99}{Boneh
+  and Durfee 2000}), improving an earlier bound of \(N^{0.25}\) due to
+  Wiener. This is why we choose a small \emph{public} exponent \(e\) to
+  speed up the forward direction, and never a small private exponent
+  \(d\).
+\end{itemize}
+
+None of this breaks the scheme as we have presented it. Full-domain hash
+applies the RSA function to \(H(m)\), which is a uniform element of
+\(\Z^*_N\) with no small or structured part, so
+Theorem~\ref{thm-coppersmith} has no small root to find. But it does
+sharpen the warning made earlier in this chapter: the RSA function is
+assumed hard to invert only on \emph{random} inputs, and Coppersmith's
+method is the concrete reason that inputs which are small, structured,
+or partially known are a different matter entirely.
+
 \section{The RSA construction: Inverse
 direction}\label{the-rsa-construction-inverse-direction}
 
@@ -3766,7 +4079,7 @@ number-theoretic tools.
 \subsection{Tools from number theory}\label{tools-from-number-theory}
 
 For a natural number \(N\), let \(\phi(N)\) denote the number of
-integers in \(\Z_N = \{1, 2, 3, \dots, N\}\) that are relatively prime
+integers in \(\Z_N = \{0, 1, 2, \dots, N-1\}\) that are relatively prime
 to \(N\). When \(p\) is prime \(\phi(p) = p-1\). The function
 \(\phi(\cdot)\) is called \emph{Euler's totient function}.
 
@@ -3779,9 +4092,9 @@ factors.
 
 When \(N=pq\) is the product of two distinct primes,
 \(\phi(N) = (p-1)(q-1)\). That is so because all numbers in \(\Z_N\) are
-relatively prime to \(N\) except \(N\) and the multiples of \(p\) and
+relatively prime to \(N\) except \(0\) and the multiples of \(p\) and
 \(q\): \[ p, 2p, 3p, \dots, (q-1)p,\ \ \ q, 2q, 3q, \dots, (p-1)q.\] So
-there are \(N - (q-1) - (p-1) - 1 = (p-1)(q-1)\) numbers in \(\Z_N\)
+there are \(N - 1 - (q-1) - (p-1) = (p-1)(q-1)\) numbers in \(\Z_N\)
 relatively prime to \(N\).
 
 \begin{theorem}[Euler's
@@ -3808,10 +4121,13 @@ Define the integer \(d = \frac{\phi(N) - 4}{5} + 1\). Then
 \end{lemma}
 
 \begin{proof}
-Observe that
-\[ p \equiv 4 \bmod 5 \quad \Rightarrow \quad \phi(N) - 4 \equiv 0 \bmod 5,\]
-so \(\frac{\phi(N) - 4}{5}\) is an integer and thus \(d\) is well
-defined. Then \(5 d = \phi(N) - 4 + 5 = 1 \bmod \phi(N)\).
+Since \(p \equiv q \equiv 4 \pmod 5\), we have
+\(p - 1 \equiv q - 1 \equiv
+3 \pmod 5\), and so
+\[ \phi(N) = (p-1)(q-1) \equiv 3 \cdot 3 = 9 \equiv 4 \pmod 5. \] Hence
+\(\phi(N) - 4 \equiv 0 \pmod 5\), so \(\frac{\phi(N)-4}{5}\) is an
+integer and \(d\) is well defined. Then
+\[ 5d = \big(\phi(N) - 4\big) + 5 = \phi(N) + 1 \equiv 1 \pmod{\phi(N)}. \]
 \end{proof}
 
 \subsection{Inverting the RSA
@@ -3872,10 +4188,16 @@ typically use the extended Euclidean algorithm to compute the
 multiplicative inverse of \(e\) modulo \(\phi(N)\). That algorithm is
 more general, but the one we used in 2 is simpler and is self-contained.
 
-\textbf{Inverting RSA is easy on a negligible fraction of points.}
-Recall the RSA is If the preimage under the RSA function of a point
-\(y\) is very very small, then If \(x < N^{1/5}\), then computing \(x\)
-given \(y = x^5 \bmod N\) is \emph{easy}.
+\textbf{Inverting RSA is easy on a negligible fraction of points.} If
+the preimage \(x\) of a point \(y\) under the RSA function is very
+small, inverting the function is \emph{easy}: when \(x < N^{1/5}\), the
+value \(x^5\) never wraps around the modulus, so \(y = x^5\) holds over
+the integers and we can recover \(x\) by taking an ordinary fifth root.
+More generally, Theorem~\ref{thm-coppersmith} recovers \(x\) whenever it
+lies within \(N^{1/5}\) of a value we can guess. For a uniformly random
+\(y \getsr \Z^*_N\) such an \(x\) occurs only with negligible
+probability \(\approx 2^{-4\lambda/5}\), which is why the RSA assumption
+is stated for random inputs.
 
 \textbf{Is inverting RSA as hard as factoring the modulus \(N\)?} The
 inversion algorithm we showed here requires knowing the prime factors of
@@ -4159,7 +4481,7 @@ possible reasons for this:
 \item
   Software bugs may lead a user to generate an insecure keypair that
   they later want to revoke. (\citeproc{ref-yilek2009private}{Yilek et
-  al. 2009}; \citeproc{ref-nemec2017return}{Nemec et al. 2017})
+  al. 2009}; \citeproc{ref-nemec2017return}{Nemec et al. 2017b})
 \end{itemize}
 
 In a scheme that uses certificates, this seems like a hard problem:
@@ -10534,6 +10856,16 @@ Bittau, Andrea, Adam Belay, Ali Mashtizadeh, David Mazières, and Dan
 Boneh. 2014. {``Hacking Blind.''} \emph{IEEE Symposium on Security and
 Privacy}, 227--42.
 
+\bibitem[\citeproctext]{ref-BD99}
+Boneh, Dan, and Glenn Durfee. 2000. {``Cryptanalysis of {RSA} with
+Private Key \(d\) Less Than \(N^{0.292}\).''} \emph{IEEE Transactions on
+Information Theory} 46 (4): 1339--49.
+
+\bibitem[\citeproctext]{ref-Coppersmith97}
+Coppersmith, Don. 1997. {``Small Solutions to Polynomial Equations, and
+Low Exponent {RSA} Vulnerabilities.''} \emph{Journal of Cryptology} 10
+(4): 233--60.
+
 \bibitem[\citeproctext]{ref-DH76}
 Diffie, Whitfield, and Martin E Hellman. 1976. {``New Directions in
 Cryptography.''} \emph{Transactions on Information Theory} 22 (6).
@@ -10547,11 +10879,6 @@ Cryptanalysis of the {NBS} Data Encryption Standard.''} \emph{Computer}
 Duong, Thai, and Juliano Rizzo. 2009. \emph{{Flickr's} {API} Signature
 Forgery Vulnerability}.
 \href{https://vnhacker.blogspot.com/2009/09/flickrs-api-signature-forgery.html}{Https://vnhacker.blogspot.com/2009/09/flickrs-api-signature-forgery.html}.
-
-\bibitem[\citeproctext]{ref-granville2008smooth}
-Granville, Andrew. 2008. {``Smooth Numbers: Computational Number Theory
-and Beyond.''} \emph{Algorithmic Number Theory: Lattices, Number Fields,
-Curves and Cryptography} 44: 267--323.
 
 \bibitem[\citeproctext]{ref-HILL99}
 Hastad, J., R. Impagliazzo, L. A. Levin, and M. Luby. 1999. {``A
@@ -10577,9 +10904,10 @@ Symposium on Security and Privacy}.
 Lamport, Leslie. 1979. \emph{Constructing Digital Signatures from a One
 Way Function}.
 
-\bibitem[\citeproctext]{ref-lenstra2000integer}
-Lenstra, Arjen K. 2000. {``Integer Factoring.''} \emph{Designs Codes,
-and Cryptography} 19 (2/3).
+\bibitem[\citeproctext]{ref-LLL82}
+Lenstra, A. K., H. W. Lenstra, and L. Lovász. 1982. {``Factoring
+Polynomials with Rational Coefficients.''} \emph{Mathematische Annalen}
+261 (4): 515--34.
 
 \bibitem[\citeproctext]{ref-lenstra:universal}
 Lenstra, Arjen K, Thorsten Kleinjung, and Emmanuel Thomé. 2013.
@@ -10596,9 +10924,15 @@ Müller, Jens, Fabian Ising, Vladislav Mladenov, Christian Mainka,
 Sebastian Schinzel, and Jörg Schwenk. 2019. {``Practical Decryption
 Exfiltration: Breaking Pdf Encryption.''} \emph{ACM CCS}.
 
+\bibitem[\citeproctext]{ref-ROCA17}
+Nemec, Matus, Marek Sys, Petr Svenda, Dusan Klinec, and Vashek Matyas.
+2017a. {``The Return of {Coppersmith's} Attack: Practical Factorization
+of Widely Used {RSA} Moduli.''} \emph{ACM Conference on Computer and
+Communications Security}.
+
 \bibitem[\citeproctext]{ref-nemec2017return}
 Nemec, Matus, Marek Sys, Petr Svenda, Dusan Klinec, and Vashek Matyas.
-2017. {``The Return of {Coppersmith's} Attack: Practical Factorization
+2017b. {``The Return of {Coppersmith's} Attack: Practical Factorization
 of Widely Used {RSA} Moduli.''} \emph{CCS}.
 
 \bibitem[\citeproctext]{ref-RSA}
@@ -10631,275 +10965,6 @@ Zetter, Kim. 2008. {``{Palin} e-Mail Hacker Says It Was Easy.''} In
 \href{https://www.wired.com/2008/09/palin-e-mail-ha/}{Https://www.wired.com/2008/09/palin-e-mail-ha/}.
 
 \end{CSLReferences}
-
-\cleardoublepage
-\phantomsection
-\addcontentsline{toc}{part}{Appendices}
-\appendix
-
-\chapter{Factoring integers}\label{sec-fact}
-
-The problem of integer factorization was central to 20th-century
-cryptography. Breaking the one-wayness of the RSA trapdoor one-way
-function (Chapter~\ref{sec-rsa}), for example, is no harder than
-factoring integers. In this chapter, we will see a couple of
-surprisingly powerful algorithms for factoring integers.
-
-We will only consider factoring numbers of the form \(N=pq\), for
-distinct odd primes \(p\) and \(q\). (The general case is not too much
-more challenging.) Throughout, let \(n = \lceil \log_2 N \rceil\) be the
-bitlength of the number to factor.
-
-\section{Background}\label{sec-fact-bg}
-
-\textbf{Trial division.} We can factor \(N\) by trying to divide \(N\)
-by each of the primes of size \(\leq \sqrt N\) and checking whether the
-result is an integer. If so, we have found a factor of \(N\). Since at
-least one of the two factors of \(N\) is in \(\{1, \dots, \sqrt N\}\),
-this algorithm (``trial division'') runs in time roughly
-\(\sqrt{N} = 2^{n/2}\).
-
-Trial division is an \emph{exponential time} algorithm, since it runs in
-time \(2^{\Omega(n)}\), where the bitlength \(n\) is the size of the
-number to be factored. The best known factoring algorithms run in
-\emph{sub-exponential time} \(2^{O(n^c)}\), for some constant \(c < 1\).
-
-\textbf{Euclid's algorithm.} An important subroutine in almost all
-factoring algorithms is Euclid's polynomial-time algorithm for computing
-the greatest common divisor of two integers \(x\) and \(y\).
-
-\marginnote{\begin{footnotesize}
-
-In this discussion, we draw on Arjen Lenstra's very nice survey on
-factoring (\citeproc{ref-lenstra2000integer}{Lenstra 2000}).
-
-\end{footnotesize}}
-
-The principle of Euclid's algorithm is that
-\[ \gcd(x, y) = \gcd(x, y \bmod x) \qquad \text{and} \qquad \gcd(x, 0) = x.\]
-So, for example, if we want to compute \(\gcd(46, 12)\), we can compute
-it as: \[ \gcd(46,12) = \gcd(12, 10) = \gcd(10, 2) = 2. \]
-
-\textbf{Difference of squares.} The second key idea is that, if we can
-find two numbers \(x,y \in \Z\) whose squares are congruent modulo
-\(N\), we can use these numbers to factor \(N\): \[\begin{aligned}
-x^2 &= y^2 &\pmod N \\
-x^2 - y^2 &= 0 &\pmod N\\
-(x+y)(x-y) &= 0 &\pmod N\\
-\end{aligned}\]
-
-If \(x = \pm y\), then this relation is not helpful to us.
-
-\marginnote{\begin{footnotesize}
-
-It is not necessarily obvious that the useful pairs \((x,y)\) will ever
-exist. The key idea is that, modulo \(N=pq\), ever number in \(\Z^*_N\)
-either has four square roots or has none. If an element in \(\Z^*_N\)
-has four square roots then the roots are of the form \(r,-r, s, -s\). In
-this case, a pair \((\pm r, \pm s)\) yields the sort of relation that we
-need to factor.
-
-\end{footnotesize}}
-
-But if \(x \neq \pm y\), then we know that \(x+y \neq 0 \bmod N\) and
-\(x-y \neq 0 \bmod N\). So we have: \[ (x+y)(x-y) = kN \quad \in \Z,\]
-for some positive integer \(k \in \Z\). Then \(x+y\) must be a multiple
-of one of the factors of \(N\) (but not both), and \(\gcd(x+y, N)\)
-reveals a factor of \(N\).
-
-The goal of many factoring algorithms---including the one we will see
-today---is finding these integers \(x\) and \(y\) whose squares are
-congruent modulo \(N\).
-
-\section{Dixon's algorithm}\label{dixons-algorithm}
-
-Dixon's algorithm is one of the simplest sub-exponential-time factoring
-algorithms. It gives a fast method for finding two numbers whose squares
-are congruent modulo \(N\). Once we have these squares, we can use them
-to factor as in Section~\ref{sec-fact-bg}
-
-\subsection{The idea}\label{the-idea}
-
-The principle of Dixon's algorithm is that we will pick many random
-numbers \(r \in \Z^*_N\) and square them modulo the integer \(N\) we
-would like to factor.
-
-Say that we are somehow able to find numbers \(r, r'\) such that
-\[\begin{aligned}
-  r^2 &= 2 \cdot 3^2 \cdot 5 &\pmod N\\
-  r'^2 &= 2 \cdot 5 &\pmod N,\\
-\end{aligned}\] then we know that: \[\begin{aligned}
-(rr')^2 &= 2^2 \cdot 3^2 \cdot 5^2 &\pmod N\\
-(rr')^2 &= (2 \cdot 3 \cdot 5)^2 &\pmod N
-\end{aligned}\] and now we have two numbers whose squares are congruent
-modulo \(N\):
-\[ x = r r' \qquad \text{ and }\qquad y = 2 \cdot 3 \cdot 5.\] If we are
-lucky, this is the useful type of congruence that we can use to factor
-\(N\) (i.e., \(r r' \neq \pm 2 \cdot 2 \cdot 5 \bmod N\)).
-
-The principle of Dixon's algorithm is to generate many such \(r\)s and
-then use linear algebra to find a subset of them whose product modulo
-\(N\) is a perfect square.
-
-\subsection{The algorithm}\label{the-algorithm}
-
-\textbf{Input:} An integer \(N = pq\) for odd primes \(p\) and \(q\). A
-parameter \(B \in \N\), which we refer to as ``the size of the factor
-base.''
-
-\textbf{Output:} The factors \((p,q)\) of \(N\).
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\item
-  \textbf{Collect linear relations.} Maintain a list \(L\) of pairs of
-
-  \begin{enumerate}
-  \def\labelenumii{(\alph{enumii})}
-  \tightlist
-  \item
-    an element in \(\Z^*_N\) and (b) vectors over \(\Z_2^B\). Repeat
-    until \(L\) contains \(B+1\) pairs:
-  \end{enumerate}
-
-  \begin{itemize}
-  \item
-    Sample \(r \getsr \Z^*_N\).
-  \item
-    Compute \(s \gets (r^2 \bmod N)\).
-  \item
-    Attempt to write \(s\) as a product of the first \(B\) primes:
-    \[ s = 2^{e_2} 3^{e_3} 5^{e_5} \dots \]
-
-    \marginnote{\begin{footnotesize}
-
-    If a number completely splits into prime factors \(\leq B\), we say
-    that the number is ``\(B\)-smooth.''
-
-    \end{footnotesize}}
-  \item
-    If successful, add the pair \((r, (e_2, e_3, e_5, \dots))\) to the
-    list \(L\).
-  \end{itemize}
-\item
-  \textbf{Solve linear system.} Let
-  \(L = \{ (r_1, \vec v_1), (r_2, \vec v_2), \dots \}\). Find a non-zero
-  combination of the vectors in \(L\) that sums to zero modulo \(2\).
-  That is, find \(S \subseteq [B+1]\) such that
-  \[ \sum_{i \in S} \vec v_i = (0, 0, 0, \cdots, 0) \qquad \in \Z_2^B. \]
-
-  \marginnote{\begin{footnotesize}
-
-  We can find the set \(S\) using Gaussian elimination in roughly
-  \(B^3\) time. Since the set of vectors will be extremely sparse, there
-  are faster methods that implementers use in practice.
-
-  \end{footnotesize}}
-
-  Letting \[ (e_2, e_3, e_5, \dots) \gets \sum_{i \in S} \vec v_i,\] we
-  then have a difference of squares:
-  \[ \left(\sum_{i \in S} r_i \right)^2 = (2^{(\frac{e_2}{2})} \cdot 3^{(\frac{e_3}{3})} \cdot 5^{(\frac{e_5}{2})} \cdots )^2 \qquad \pmod N.\]
-\item
-  \textbf{Use Euclid's algorithm to try to factor \(N\).} We can take:
-  \[\begin{aligned}
-    x &= \left(\sum_{i \in S} r_i \right)\\
-    y&= 2^{(\frac{e_2}{2})} \cdot 3^{(\frac{e_3}{3})} \cdot 5^{(\frac{e_5}{2})} \cdots )
-  \end{aligned}\] and compute \(\gcd(x+y, N)\). With probability roughly
-  \(1/2\), over the random choice of the \(r\)s, this will yield a
-  factor of \(N\).
-\end{enumerate}
-
-\subsection{The analysis.}\label{the-analysis.}
-
-The costs of the three steps of the algorithms are:
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\item
-  Each iteration of the loop requires us to try to factor a number into
-  primes \(\leq B\). We can factor in this way by trial division using
-  time roughly \(B\).
-
-  \marginnote{\begin{footnotesize}
-
-  I'm ignoring any \(\log B\) factors, which do matter very much in
-  practice.
-
-  \end{footnotesize}}
-
-  The question then is how many trials it will take for us to find a
-  single smooth number. For a smoothness bound \(B\), let's say for now
-  that it takes \(T(B)\) trials---we will look into the precise value of
-  \(T(B)\) in a moment..
-\item
-  Solving the linear system using Gaussian elimination takes roughly
-  \(B^3\) time.
-\item
-  Run Euclid's algorithm---the time required here is negligible compared
-  to the time of the first two steps. This step runs in time
-  \(\poly(\log N) = \poly(n)\).
-\end{enumerate}
-
-Putting everything together, we have that factoring an \(n\)-bit number
-with a factor base of size \(B\) takes time:
-\begin{equation}\protect\phantomsection\label{eq-time}{
-B \cdot T(B) + B^3 + \poly(n).
-}\end{equation}
-
-\textbf{Smoothness probabilities.} The key question that we need to
-answer to complete the analysis is
-
-\begin{quote}
-``If we pick an integer uniformly at random from \(\{1, \dots, N\}\),
-what is the probability that the integer will be \(B\)-smooth?''
-\end{quote}
-
-The convention is to denote the number of \(B\)-smooth numbers in
-\(\{1, \dots, N\}\) as \(\Psi(N,B)\). When \(B\) is ``not too small,''
-we have:
-
-\marginnote{\begin{footnotesize}
-
-For many more details on these estimates, take a look at Granville's
-very nice survey on smooth numbers.
-(\citeproc{ref-granville2008smooth}{Granville 2008})
-
-\end{footnotesize}}
-
-\[ \Psi(N, B) \approx N \cdot u^{-u + o(1)}\qquad \text{for } u = \frac{\log N}{\log B}.\]
-
-The probability of a random number modulo \(N\) being \(B\)-smooth is
-then \(\Psi(N,B)/N\) and the expected number of tries it will take for
-us to find a smooth number is: \[ T(B) = 1/\Psi(N,B).\]
-
-\marginnote{\begin{footnotesize}
-
-We are being slightly imprecise---we actually need to know the number of
-squares (quadratic residues) modulo \(N\) that are smooth. But
-heuristically, we can assume that quadratic residues behave like random
-integers modulo \(N\) for the purposes of smoothness.
-
-\end{footnotesize}}
-
-Now we can plug this estimate into the expression
-(Equation~\ref{eq-time}) for the running time of Dixon's algorithm and
-we can solve for the value of \(B\) that minimizes the running time. In
-particular, to minimize the running time we want: \[\begin{aligned}
-  B \approx T(B) \approx N / \Psi(N,B) = u^u,
-\end{aligned}\] for \(u = (\log N)/(\log B)\).
-
-\[\begin{aligned}
-  B &= u^u\\
-  \log B &= u \log u\\
-  \log B &= \frac{\log N}{\log B} \log \frac{\log N}{\log B}\\
-  \log^2 B &\approx \log N \log \log N\\
-\log B &\approx \sqrt{\log N \log \log N}\\
-B &\approx \exp(\sqrt{\log N \log \log N}).\\
-\end{aligned}\]
-
-If we plug this value of \(B\) into Dixon's algorithm, we get a running
-time of
-\[ \exp(O(\sqrt{ \log N \log \log N}) = 2^{O(\sqrt{ n \log n })}.\]
 
 
 \backmatter
