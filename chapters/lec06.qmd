@@ -543,3 +543,5 @@ Most cryptographers, I would guess, believe that inverting the RSA function
 is as hard as factoring.
 But for all we know, it could be that computing fifth roots modulo $N$ is *easier*
 than factoring the modulus.
+
+The **RSA inversion** assumption corresponds to assuming that inverting RSA is hard.
