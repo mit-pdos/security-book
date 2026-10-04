@@ -306,11 +306,11 @@
 \newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
 \usepackage{amsthm}
 \theoremstyle{plain}
-\newtheorem{lemma}{Lemma}[chapter]
+\newtheorem{theorem}{Theorem}[chapter]
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[chapter]
 \theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}{Lemma}[chapter]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
 \newtheorem*{remark}{Remark}
@@ -4213,6 +4213,9 @@ function is as hard as factoring. But for all we know, it could be that
 computing fifth roots modulo \(N\) is \emph{easier} than factoring the
 modulus.
 
+The \textbf{RSA inversion} assumption corresponds to assuming that
+inverting RSA is hard.
+
 \chapter{Public-key Infrastructure}\label{public-key-infrastructure}
 
 In the last chapter, we discussed digital signatures, which allow us to
@@ -4530,7 +4533,8 @@ In this chapter, we will discuss \emph{encryption}, which allow two
 parties to exchange messages over an insecure network while hiding the
 contents of their communications.
 
-We will cover encryption in a sequence of steps:
+We will cover encryption in a sequence of steps across multiple
+lectures:
 
 \begin{itemize}
 \tightlist
@@ -4733,30 +4737,6 @@ also broken in practice. For example, if you encrypt the pixels of an
 image using a deterministic encryption scheme, the encrypted image
 essentially reveals the plaintext image.
 
-\textbf{Why CPA security is a ``weak'' form of security.} There are two
-reasons why CPA security is a weak or insufficient definition of
-security for an encryption scheme:
-
-\begin{itemize}
-\tightlist
-\item
-  First, the CPA security definition guarantees nothing about message
-  \emph{integrity}: an attacker can modify the ciphertext and
-  potentially change the meaning of the encrypted message in a
-  meaningful way (even if the attacker does not know the encrypted
-  message!).
-\item
-  Second, the CPA security definition guarantees nothing in the event
-  that the adversary can obtain \emph{decryptions} of ciphertexts of its
-  choosing. In practice, attackers can often obtain decryptions of
-  chosen ciphertexts. for example, in a system where a client sends
-  encrypted messages to a server and the server does something in
-  response, an attacker can send encrypted queries to the server and
-  observe its behavior to learn some function of the decrypted contents
-  of the message. Later on, we will expand our definition to include
-  these \emph{chosen ciphertext attacks}.
-\end{itemize}
-
 \section{One-time Pad}\label{one-time-pad}
 
 The one-time pad is perhaps the simplest encryption scheme. Its
@@ -4810,7 +4790,109 @@ then use these keys to communicate securely over long distances.
 In practice, it is much more convenient to be able to exchange a
 \emph{short} key and then use it to encrypt many \emph{long} messages.
 
-\section{A Weak Encryption Scheme}\label{sec-lec8-weakenc}
+\section{RSA Encryption}\label{rsa-encryption}
+
+RSA (Rivest-Shamir-Adleman, 1977) was the first public key encryption
+scheme.
+
+\subsection{Key Generation}\label{key-generation}
+
+Let \(N=pq\) be an RSA modulus, where \(p\) and \(q\) are distinct
+primes. Compute \(\varphi(N) = (p-1)(q-1)\). Choose \(e\) such that
+\(\gcd(e,\varphi(N))=1\), and let \[
+    d = e^{-1} \bmod \varphi(N).
+\] The public key is \(\mathsf{pk}=(N,e)\) and the secret key is
+\(\mathsf{sk}=(N,d)\). For a fixed message length \(\ell\), let \[
+    H:\mathbb{Z}_N^{*}\longrightarrow\{0,1\}^{\ell}
+\] be modeled as a random oracle. Elements of \(\mathbb{Z}_N^{*}\) are
+hashed using a canonical fixed-length encoding.
+
+\subsection{Encryption and Decryption}\label{encryption-and-decryption}
+
+Assume \(m\) is the output of the hash \(H\).
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Encrypt:} \(\Enc((N, e), m) := m^e \pmod N\).
+\item
+  \textbf{Decrypt:} \(\Dec((N, d), c) := c^d \pmod N\).
+\end{itemize}
+
+\section{RSA Security Properties}\label{rsa-security-properties}
+
+Textbook RSA is a \textbf{deterministic} encryption scheme. For a fixed
+public key, the encryption function is a permutation. Because there is
+no randomness involved in the encryption process, the same message \(m\)
+will always produce the exact same ciphertext \(c\).
+
+\subsection{Why RSA is not CPA Secure}\label{why-rsa-is-not-cpa-secure}
+
+If an encryption scheme is deterministic, an adversary can easily win
+the \(\INDCPA\) game:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  The adversary selects two messages \(m_0\) and \(m_1\).
+\item
+  The challenger encrypts one, \(c^* = \Enc(\mathsf{pk}, m_b)\), and
+  returns it.
+\item
+  The adversary simply computes \(c_0 = m_0^e \pmod N\) and
+  \(c_1 = m_1^e \pmod N\) using the public key.
+\item
+  By comparing \(c^*\) to \(c_0\) and \(c_1\), the adversary knows \(b\)
+  with \(100\%\) certainty.
+\end{enumerate}
+
+To achieve \(\INDCPA\) security, we must introduce randomness so that
+\(\Enc(\mathsf{pk}, m)\) produces a different ciphertext each time. This
+is done via \textbf{padding schemes}.
+
+\textbf{Encryption with randomness.} To encrypt \(m\in\{0,1\}^{\ell}\),
+sample a fresh, independent \(r \getsr \mathbb{Z}_N^{*}\) and output \[
+    \boxed{
+    \mathsf{Enc}_{\mathsf{pk}}(m;r)
+    =
+    \left(
+        r^e \bmod N,\;
+        m\oplus H(r)
+    \right).
+    }
+\]
+
+\textbf{Decryption.} Given a ciphertext
+\((c_1,c_2)\in\mathbb{Z}_N^{*}\times\{0,1\}^{\ell}\), compute \[
+    r = c_1^d \bmod N
+\] and output \[
+    \boxed{
+    \mathsf{Dec}_{\mathsf{sk}}(c_1,c_2)
+    =
+    c_2\oplus H(r).
+    }
+\] Reject malformed ciphertexts with \(\bot\) (empty output).
+
+\textbf{Correctness.} Since \(ed\equiv 1\pmod{\varphi(N)}\), we have \[
+    (r^e)^d \equiv r \pmod N.
+\] Consequently, \[
+    \mathsf{Dec}_{\mathsf{sk}}
+    \bigl(\mathsf{Enc}_{\mathsf{pk}}(m;r)\bigr)
+    =
+    \bigl(m\oplus H(r)\bigr)\oplus H(r)
+    =
+    m.
+\]
+
+\textbf{Security.} Under the RSA inversion assumption, this scheme is
+\(\INDCPA\) secure in the random-oracle model. Until an adversary
+queries \(H\) at the challenge randomness \(r\), the value \(H(r)\) is
+an unknown uniform mask. Such a query yields an RSA preimage,
+recognizable by checking \(r^e\equiv c_1\pmod N\).
+
+\section{Encryption Scheme Based on Pseudorandom
+Functions}\label{sec-lec8-weakenc}
 
 What we effectively need is a way to generate many bits of
 random-looking keys (i.e., keys for the one-time pad encryption scheme)
@@ -5011,6 +5093,32 @@ encrypting a movie! This would greatly decrease the practicality of our
 encryption scheme. For applications where hiding the length is
 especially important, the messages can be padded to ensure they are all
 the same length before they are passed to the encryption scheme.
+
+\section{Why CPA security is a ``weak'' form of
+security}\label{why-cpa-security-is-a-weak-form-of-security}
+
+There are two reasons why CPA security is a weak or insufficient
+definition of security for an encryption scheme:
+
+\begin{itemize}
+\tightlist
+\item
+  First, the CPA security definition guarantees nothing about message
+  \emph{integrity}: an attacker can modify the ciphertext and
+  potentially change the meaning of the encrypted message in a
+  meaningful way (even if the attacker does not know the encrypted
+  message!).
+\item
+  Second, the CPA security definition guarantees nothing in the event
+  that the adversary can obtain \emph{decryptions} of ciphertexts of its
+  choosing. In practice, attackers can often obtain decryptions of
+  chosen ciphertexts. for example, in a system where a client sends
+  encrypted messages to a server and the server does something in
+  response, an attacker can send encrypted queries to the server and
+  observe its behavior to learn some function of the decrypted contents
+  of the message. Later on, we will expand our definition to include
+  these \emph{chosen ciphertext attacks}.
+\end{itemize}
 
 \chapter{Authenticated Encryption}\label{authenticated-encryption}
 
