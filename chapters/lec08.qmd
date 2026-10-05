@@ -238,7 +238,7 @@ The algorithms are:
   - Compute a one-time key $k \gets F(k, r)$ using the pseudorandom function.
   - Use this key to compute the ciphertext using the one-time pad:
     output $c \gets (r, k \xor m) \in \zo^{2n}$.
-- $\Dec(k, c)$:
+- $\Dec(k, c) \to m$:
   - Parse the ciphertext $c$ into $(r, c')$.
   - Compute $m \gets c' \xor F(k, r)$.
 
