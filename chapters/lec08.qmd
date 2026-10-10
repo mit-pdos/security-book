@@ -126,6 +126,16 @@ the following game with probability at most $\tfrac{1}{2}$ + "negligible:"
   the encryption of two messages of the *same* length.
   :::
 
+  ::: {.column-margin}
+  Note that there is \emph{no} requirement that $m^*_0$ and
+  $m^*_1$ be distinct from the messages $m_1, \dots, m_n$ queried earlier;
+  either or both may be repeats.  This differs from our MAC definition,
+  where the forgery had to be on a fresh message.  Allowing repeats here
+  is essential: the attack below showing that deterministic encryption is
+  insecure works by submitting a previously queried message as part of the
+  challenge pair.
+  :::
+
 - The challenger replies with $c^* \gets \Enc(k, m^*_b)$.
 - The adversary outputs a value $b' \in \bin$. The adversary wins if $b=b'$.
 :::
