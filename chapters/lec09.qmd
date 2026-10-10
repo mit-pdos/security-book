@@ -13,12 +13,13 @@ of messages of its choice
 Our security notion then says that
 even an attacker with this power should not be
 able to distinguish which of two chosen plaintext
-message a given ciphertexts encrypts.
+message a given ciphertext encrypts.
 This new and strong notion of security for encryption
 schemes is called
-*security against adaoptive chosen-ciphertext attacks*.
+*security against adaptive chosen-ciphertext attacks*.
 
-**Motivation: Chosen-ciphertext security.**
+## Motivation: Chosen-ciphertext security
+
 It is not clear why chosen-ciphertext security is the right
 security notion to consider.
 In real-life applications, why would we ever allow an attacker
@@ -39,7 +40,7 @@ the server returned an error message.
 
 ::: {.column-margin}
 If the server returns an error when the decrypted message
-is illformed, we often call it a *padding oracle*.
+is ill-formed, we often call it a *padding oracle*.
 Many many real-world protocols using non-chosen-ciphertext-secure encryption
 schemes fall victim to this sort of attack.
 :::
@@ -62,9 +63,9 @@ of the command and the PRF-generated pseudorandom bytes.  Suppose that
 the adversary knows the user is running this command, but doesn't know
 the contents of the 6-byte secret string.  Consider what
 happens if the adversary XORs the encrypted message with the hexadecimal
-bytes `00 00 00 00 00 00 00 00 00 00 00 00 00 00 5c 11 0e 02 4a 04 58 04 05 05 06`.
-The leading zeroes mean that the first part of the
-command, `echo secret > `, will remain unchanged.  When the server
+bytes `00 00 00 00 00 00 00 00 00 00 00 00 00 00 5c 11 0e 02 4a 04 58 04 05 05 06`,
+where the leading zeroes mean that the first part of the
+command, `echo secret >`, will remain unchanged.  When the server
 decrypts the latter part of the command (originally `secret-file`),
 however, it will obtain the XOR of `secret-file` and the bytes that
 the adversary XOR'ed in, which happens to turn into the string `/tmp/public`.
@@ -86,7 +87,7 @@ scheme is to combine a CPA-secure encryption scheme with a MAC in a careful way.
 
 We now formally define our strong security notion:
 *indistinguishability under chosen ciphertext attacks*,
-also known as IND-CCA2 security or CCA security.
+also known as IND-CCA2 (Chosen Ciphertext Adaptive Attacks) security or CCA security.
 
 ::: {#def-cca}
 ## CCA security for encryption (strong)
@@ -115,7 +116,31 @@ game with probability at most $\tfrac{1}{2} + \text{``negligible''}$:
 - The adversary wins if $b=b'$.
 :::
 
-### Encrypt then MAC
+## RSA with Randomized Padding is not IND-CCA2 secure
+
+Even if randomized for CPA security, "textbook" RSA and simple padding covered in the previous lecture is **malleable**, which makes it fail **IND-CCA2** (security against adaptive chosen-ciphertext attacks).
+
+### The Homomorphic Property
+
+RSA has a multiplicative homomorphic property:
+$$ (m_1)^e \cdot (m_2)^e \equiv (m_1 \cdot m_2)^e \pmod N $$
+This allows an attacker to manipulate a ciphertext $c = m^e \pmod N$ into a new ciphertext $c' = c \cdot 2^e \pmod N$.
+
+### The Attack
+
+In an IND-CCA2 game, the adversary is allowed to use a Decryption Oracle:
+
+1. Adversary receives challenge $c^* = m_b^e \pmod N$.
+2. Adversary cannot ask the Oracle to decrypt $c^*$.
+3. However, they can compute $c' = c^* \cdot 2^e \pmod N = (2m_b)^e \pmod N$.
+4. Since $c' \neq c^*$, the Oracle decrypts it and returns $m' = 2m_b$.
+5. The adversary divides $m'$ by 2 to recover the original message $m_b$.
+
+### Conclusion: RSA-OAEP
+
+To reach the "Gold Standard" of **IND-CCA2** security, RSA must use Optimal Asymmetric Encryption Padding (OAEP). OAEP ensures that any modification to the ciphertext will result in a padding error during decryption, effectively "breaking" the malleability and making the Decryption Oracle useless to an attacker.
+
+## Encrypt then MAC
 
 We typically achieve CCA security using the "encrypt-then-MAC" construction:
 
@@ -134,14 +159,14 @@ The decryption routine first checks the MAC tag, then decrypts the ciphertext.
 
 Using independent keys $(k_\mathsf{Enc}, k_\mathsf{MAC})$ is important
 in encrypt-then-MAC, as in many other cryptographic constructions.
-For example, a CPA-secure encryption scheme using $n$-bit keys can reveal
-the low order $n/2$ bits of its secret key in the ciphertext.
-And a secure MAC scheme using $n$-bit keys can reveal the high-order
-$n/2$ bits of its secret key in each MAC tag.
+For example, a CPA-secure encryption scheme using $2n$-bit keys can reveal
+the low order $n$ bits of its secret key in the ciphertext.
+And a secure MAC scheme using $2n$-bit keys can reveal the high-order
+$n$ bits of its secret key in each MAC tag.
 Used independently, the encryption scheme and the MAC scheme are both
-secure.
-Used together with the same key $k$, the attacker learns all $n$ bits
-of the key $n$ and can break both primitives!
+secure, each with security parameter $n$.
+Used together with the same key $k$ with $2n$ bits, the attacker learns all $2n$ bits
+of the key and can break both primitives!
 
 So, in general, you should always use independent keys for different primitives.
 To reduce the amount of keying material parties need to store, it is actually
@@ -152,19 +177,15 @@ and derive all subsequent keys from the pseudorandom strings $F(k, 0), F(k, 1), 
 ## Informal
 
 The Encrypt-then-MAC construction yields a CCA-secure encryption scheme,
-provided that: the underlying encryption scheme is CPA-secure and the
+provided that the keys are generated independently, and the underlying encryption scheme is CPA-secure and the
 underlying MAC scheme is secure (existentially unforgeable against adaptive chosen message attacks).
 :::
 
 **Warning! Only use encrypt-then-MAC.**
 There are a number of bad ways to combine encryption and MACs to attempt to
 build authenticated-encryption schemes.
-MAC-then-encrypt is one way. Encrypt-and-MAC (i.e., MAC the message
-instead of the ciphertext) is another.
-Neither of these constructions is necessarily CCA-secure when used with a
-CPA-secure encryption scheme and a secure MAC scheme.
-So the ***only*** flavor of authenticated encryption you should use
-is encrypt-then-MAC.
+Encrypt-and-MAC (i.e., MAC the message instead of the ciphertext) is one
+way.  MAC-then-Encrypt is another way.
 
 ::: {.column-margin}
 Reminder:
@@ -172,6 +193,203 @@ You should never need to implement authenticated-encryption schemes yourself.
 Instead use an off-the-shelf implementation that does the hard work for you.
 AES-GCM is one popular and widely implemented authenticated encryption scheme
 :::
+
+### Encrypt-and-MAC is broken
+
+We construct a CPA-secure encryption scheme and an unforgeable MAC,
+with *independently generated keys*, whose encrypt-and-MAC composition
+is not even CPA-secure, and therefore is not CCA-secure. The attack recognizes
+a deterministic tag of the plaintext.
+
+Let $n$ be the security parameter. Let $F$ and $G$ be secure pseudorandom-function
+families with $n$-bit keys, inputs, and outputs. Generate
+$$
+  k_E\getsr\bits^n,
+  \qquad k_M\getsr\bits^n
+  \qquad\text{independently.}
+$$
+The keys are chosen once and reused; the encryption randomness below is fresh
+on every invocation.
+
+**Encryption.** For $m\in\bits^n$, define
+$$
+  \Enc_{k_E}(m)=\bigl(r,\,m\oplus F_{k_E}(r)\bigr),
+  \qquad r\getsr\bits^n.
+$$ {#eq-base-encryption}
+Decryption is $\Dec_{k_E}(r,z)=z\oplus F_{k_E}(r)$.
+To see CPA security, replace $F_{k_E}$ with a truly random function. Whenever
+all sampled $r$'s are distinct, its outputs are independent uniform pads, so
+ciphertexts reveal nothing about the messages. The probability of a repeated
+$r$ among polynomially many encryptions is negligible. PRF security then
+transfers this conclusion to the real scheme.
+
+**MAC.** Define
+$$
+  \Tag_{k_M}(m)=G_{k_M}(m),
+  \qquad
+  \Vrfy_{k_M}(m,t)=\mathbf{1}\{t=G_{k_M}(m)\}.
+$$ {#eq-base-mac}
+In the random-function hybrid, the tag of any previously unqueried message
+is an independent uniform $n$-bit string, so a single forgery attempt succeeds
+with probability $2^{-n}$. PRF security implies unforgeability for the real
+MAC. Moreover, every message has exactly one valid tag. Thus a different
+valid tag for an already queried message is impossible, and the MAC is
+unforgeable under adaptive chosen-message attacks.
+
+**Encrypt-and-MAC.** The combined encryption algorithm publishes the encryption and the tag of
+*the plaintext*:
+$$
+  \boxed{
+  \EncAM_{k_E,k_M}(m)
+    =\bigl(r,\,m\oplus F_{k_E}(r),\,G_{k_M}(m)\bigr).
+  }
+$$ {#eq-composition-2}
+To decrypt $(r,z,t)$, compute $m=z\oplus F_{k_E}(r)$ and return $m$ if
+$t=G_{k_M}(m)$; otherwise return $\bot$. Malformed tuples are rejected.
+
+**A chosen-plaintext attack.**
+The adversary uses one ordinary encryption query, one challenge query, and
+*no decryption queries*.
+
+1. **Obtain a reference tag.**
+   Choose $m_0=0^n$ and $m_1=1^n$. Query the combined encryption oracle on
+   $m_0$ and retain the tag component
+   $$
+     t_0=G_{k_M}(m_0).
+   $$
+2. **Request the challenge.**
+   Submit $(m_0,m_1)$ to the challenger and receive
+   $$
+     C^*=(r^*,z^*,t^*),
+     \qquad t^*=G_{k_M}(m_b),
+     \qquad b\getsr\bits.
+   $$
+3. **Compare the tags.** Output
+   $$
+     b'=\begin{cases}
+       0,&\text{if }t^*=t_0,\\
+       1,&\text{if }t^*\ne t_0.
+     \end{cases}
+   $$
+
+When $b=0$, the tags match with certainty. When $b=1$, the adversary errs
+only if $G_{k_M}(m_1)=G_{k_M}(m_0)$, which happens with negligible probability!
+
+::: {.column-margin}
+No MAC forgery occurs. The adversary only recognizes a tag obtained
+from a chosen-plaintext query. Randomizing the encrypted component does not
+randomize the deterministic tag of the same plaintext.
+:::
+
+This is overwhelming success, rather than the $1/2+\negl(n)$ permitted by
+CPA security. Since the attack needs no decryption oracle, it also breaks
+CCA security.
+
+### MAC-then-Encrypt is Broken
+
+We construct a CPA-secure encryption scheme and an unforgeable MAC,
+with *independently generated keys*, whose MAC-then-encrypt composition
+remains CPA-secure but is completely insecure against a chosen-ciphertext
+attack.
+
+Let $n$ be the security parameter. Start with any perfectly correct,
+CPA-secure symmetric encryption scheme $(\Gen_0,\Enc_0,\Dec_0)$ that
+supports $2n$-bit plaintexts. Let $G$ be a secure pseudorandom-function
+family with $n$-bit keys, inputs, and outputs. Generate
+$$
+  k_E\leftarrow\Gen_0(1^n),
+  \qquad k_M\getsr\bits^n,
+  \qquad\text{using independent randomness.}
+$$
+
+**Encryption with an ignored bit.** Define a new encryption scheme by
+$$
+  \boxed{
+  \Enc_{k_E}(x)=\bigl(\Enc_{0,k_E}(x),\,u\bigr),
+  \qquad u\getsr\bits,
+  }
+$$ {#eq-redundant-encryption}
+where $u$ is fresh and independent on every invocation. Its decryption
+algorithm ignores the bit:
+$$
+  \boxed{\Dec_{k_E}(c,u)=\Dec_{0,k_E}(c).}
+$$ {#eq-ignored-bit}
+Malformed pairs, including pairs with $u\notin\bits$, are rejected.
+This scheme is CPA-secure: a reduction appends an independent random bit to
+every ciphertext supplied by the underlying encryption oracle, including
+the challenge ciphertext. This is a perfect simulation and preserves the
+adversary's distinguishing advantage. Both values of $u$ occur in honestly
+generated ciphertexts.
+
+**MAC.** Define
+$$
+  \Tag_{k_M}(m)=G_{k_M}(m),
+  \qquad
+  \Vrfy_{k_M}(m,t)=\mathbf{1}\{t=G_{k_M}(m)\}.
+$$
+In the random-function hybrid, a forgery on a new message requires guessing
+an independent uniform $n$-bit tag. Each message also has exactly one valid
+tag, so a different valid tag on a previously queried message is impossible.
+PRF security therefore makes this MAC strongly unforgeable under adaptive
+chosen-message attacks.
+
+**The MAC-then-encrypt composition.**
+For $m\in\bits^n$, first compute $t=G_{k_M}(m)$, then encrypt $m\concat t$:
+$$
+  \boxed{
+  \EncME_{k_E,k_M}(m)
+    =\bigl(\Enc_{0,k_E}(m\concat G_{k_M}(m)),\,u\bigr),
+  \qquad u\getsr\bits.
+  }
+$$ {#eq-composition}
+To decrypt $(c,u)$, compute $x=\Dec_{0,k_E}(c)$. Reject if $x=\bot$ or if
+$x$ is not $2n$ bits long. Otherwise parse $x=m\concat t$ with
+$|m|=|t|=n$, and return $m$ if $t=G_{k_M}(m)$; return $\bot$ otherwise.
+
+**A one-query chosen-ciphertext attack.**
+Choose distinct, equal-length messages $m_0,m_1\in\bits^n$, for example
+$m_0=0^n$ and $m_1=1^n$. No preliminary encryption queries are necessary.
+
+1. **Receive the challenge.** Submit $(m_0,m_1)$ and receive
+   $$
+     C^*=(c^*,u^*),
+     \qquad
+     c^*=\Enc_{0,k_E}\bigl(m_b\concat G_{k_M}(m_b)\bigr),
+     \qquad b\getsr\bits.
+   $$
+2. **Flip the ignored bit.** Construct
+   $$
+     \boxed{C'=(c^*,1-u^*).}
+   $$
+3. **Query decryption and decide.** Submit $C'$ to the combined
+   decryption oracle. It returns $m_b$. Output $0$ if the response is $m_0$,
+   and $1$ if it is $m_1$.
+
+This query is allowed because $C'\ne C^*$. The IND-CCA2 game forbids querying
+the challenge ciphertext itself, not every different ciphertext that decrypts
+to the same message. By perfect correctness and the fact that decryption
+ignores $u$,
+$$
+  \Dec_{k_E}(C')
+    =\Dec_{0,k_E}(c^*)
+    =m_b\concat G_{k_M}(m_b).
+$$
+The MAC check therefore succeeds: $\DecME_{k_E,k_M}(C')=m_b$. A single
+permitted decryption query recovers the challenge plaintext, giving
+$$
+  \boxed{\Pr[b'=b]=1.}
+$$
+
+::: {.column-margin}
+No MAC forgery occurs. Neither the message nor its tag changes;
+only their outer ciphertext representation changes. Both values of the
+ignored bit occur in honest encryptions, so the attack does not depend on
+accepting an encoding that honest encryption never produces.
+:::
+
+Note that the composition remains CPA-secure.
+
+**Therefore, the *only* flavor of authenticated encryption you should use is Encrypt-then-MAC.**
 
 ## AES-GCM (Galois Counter Mode) {#sec-enc-gcm}
 
@@ -187,7 +405,7 @@ There are a few optimizations that AES-GCM uses beyond what we have described:
 - AES-GCM derives both the encryption and MAC keys from a single short key
   using a pseudorandom function.
 - AES-GCM implements a fast form of the Carter-Wegman MAC that does not
-  need arithmetic modulo a big prime $p$, as the scheme described in @sec-mac-cw does.
+  need arithmetic modulo a big prime $p$.
   Instead, of defining the MAC using $\Z_p$ (integers mod a 128-bit prime $p$),
   GCM works with 128-bit strings.
   The GCM mode of operation replaces addition modulo $p$ with XOR of 128-bit strings
@@ -202,5 +420,5 @@ There are a few optimizations that AES-GCM uses beyond what we have described:
   fixed polynomial of degree-$128$. Then interpret the result as a $128$-bit string.
   :::
 
-  (Formally, the scheme works over the field $\F_{2^{128}}$ of order $2^{128}$.)
+  Formally, the scheme works over the field $\F_{2^{128}}$ of order $2^{128}$.
   This gives a big performance boost with no loss in security.

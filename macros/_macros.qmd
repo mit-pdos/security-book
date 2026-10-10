@@ -49,6 +49,13 @@ $$
 \newcommand{\sig}{\sigma}
 \newcommand{\rgets}{\mathrel{\overset{\scriptscriptstyle\mathrm{R}}{\leftarrow}}}
 \newcommand{\getsr}{\rgets}
+\newcommand{\bits}{\{0,1\}}
+\newcommand{\Tag}{\operatorname{Tag}}
+\newcommand{\Vrfy}{\operatorname{Verify}}
+\newcommand{\EncAM}{\operatorname{Enc}^{\mathrm{E\&M}}}
+\newcommand{\DecAM}{\operatorname{Dec}^{\mathrm{E\&M}}}
+\newcommand{\EncME}{\operatorname{Enc}^{\mathrm{MtE}}}
+\newcommand{\DecME}{\operatorname{Dec}^{\mathrm{MtE}}}
 $$
 :::
 :::
