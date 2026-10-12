@@ -315,12 +315,12 @@
 \floatname{codelisting}{Listing}
 \newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
 \usepackage{amsthm}
-\theoremstyle{definition}
-\newtheorem{definition}{Definition}[chapter]
-\theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[chapter]
 \theoremstyle{plain}
 \newtheorem{lemma}{Lemma}[chapter]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
 \theoremstyle{remark}
 \AtBeginDocument{\renewcommand*{\proofname}{Proof}}
 \newtheorem*{remark}{Remark}
@@ -6317,19 +6317,20 @@ Perhaps the most straightforward use of encryption is file encryption.
 users to back up their messages and contacts to the cloud. This way, a
 user can recover her messages if she loses or breaks her phone. To hide
 the user's data from WhatsApp's cloud servers, WhatsApp uses encrypted
-backup. To achieve this, the user's device generates a 128-bit AES key
+backup. To achieve this, the user's device generates a 256-bit AES key
 \(k\) at the time of backup and encrypt the message data (photos,
-messages, etc.) using AES-GCM\((k, \cdot)\) before sending the
+messages, etc.) likely using AES-GCM\((k, \cdot)\) before sending the
 \emph{ciphertext} to the server. In order to allow you to restore your
-backup on a new phone, the app allows you to export 64 decimal digits
-that encode the AES key used. When restoring your backup, you will enter
-these digits and your phone will fetch the ciphertext from the server
-and use these digits to reconstruct the key and decrypt your messages.
+backup on a new phone, the app allows you to export 64 hexadecimal
+digits that encode the AES key used. When restoring your backup, you
+will enter these digits and your phone will fetch the ciphertext from
+the server and use these digits to reconstruct the key and decrypt your
+messages.
 
 \marginnote{\begin{footnotesize}
 
 See
-\href{https://scontent.fphl1-1.fna.fbcdn.net/v/t39.8562-6/241394876_546674233234181_8907137889500301879_n.pdf?_nc_cat=108&ccb=1-7&_nc_sid=ad8a9d&_nc_ohc=ANW9FNYPigIAX93N8Oj&_nc_ht=scontent.fphl1-1.fna&oh=00_AT9IVosU4uWqddd5woEO4eUWw3mbd76IgvwjcqDApb3p9A&oe=63565D66}{\textbf{this
+\href{https://www.whatsapp.com/security/WhatsApp_Security_Encrypted_Backups_Whitepaper.pdf}{\textbf{this
 document}} for details on how WhatsApp encrypts backups. (The document
 also describes a more complicated backup scheme that uses passwords for
 encryption.)
@@ -6374,9 +6375,16 @@ The attack works against a PDF document with an \emph{unecrypted
 (public) title page} and an \emph{encrypted (secret) body}. We assume
 that the attacker can modify the PDF file on its way to the victim.
 
-To mount the attacker, the attacker intercepts the PDF on the way to the
-victim and replaces the title page with an ``evil'' title page. The evil
-title page:
+To mount the attack, the attacker replaces the title page with an
+``evil'' title page. The attacker needs write access to the file at some
+point, which they can get from an email attachment they forward along, a
+document on a shared drive or cloud folder, a USB stick, or a PDF they
+obtained in encrypted form and now want decrypted. In the last case the
+attacker holds an encrypted PDF they can't read, tampers with its
+unencrypted title page, and sends it to someone who can, i.e., turning
+the victim into a decryption oracle.
+
+The evil title page:
 
 \begin{itemize}
 \tightlist
@@ -6395,21 +6403,52 @@ content to \texttt{evil.com} via a PDF form.
 
 \textbf{What went wrong?} The core issue here was that the unencrypted
 contents of the document were not authenticated. That is, an attacker
-could modify the unencrypted pages of the document without detection. A
-better design would have been to either use a MAC over all pages of the
-document or to use a primitive called ``Authenticated Encryption with
-Associated Data'' to authenticate the encrypted data together with the
-unencrypted data.
+could modify the unencrypted pages of the document without detection.
 
-One downside of MACing the entire document is that, before rendering
-even a single page of the PDF, the reader would have to compute a MAC
-over the entire PDF. If the PDF consists of many thousands of pages,
-this could be expensive. Using a more sophisticated cryptographic
-construction: per-page MACs, plus MACs on the document metadata, etc.,
-we might be able to construct a scheme that protects document integrity
-while allowing partial document rendering. But the design of such a
-scheme would have to carefully defend document integrity against the
-sort of attacks we describe here.
+One option is to use a MAC over all pages of the document. A downside of
+MACing the entire document is that, before rendering even a single page
+of the PDF, the reader would have to compute a MAC over the entire PDF.
+If the PDF consists of many thousands of pages, this could be expensive.
+
+A better design uses \emph{two} layers of integrity protection, at
+different granularities. The fine-grained layer authenticates each
+encrypted piece of the document on its own: rather than encrypting with
+a plain cipher, we encrypt each object with an authenticated-encryption
+scheme, so that every encrypted object carries its own MAC tag. A reader
+can then validate each object as it loads it, and can begin rendering
+without having read the rest of the file.
+
+\marginnote{\begin{footnotesize}
+
+PDF applies encryption at the level of individual strings and streams
+rather than pages, so the natural unit here is the \emph{object}, not
+the page. A single page is many objects, and an object may be shared
+across pages.
+
+\end{footnotesize}}
+
+The fine-grained layer alone is not enough, though, and the reason is
+exactly the attack above. Per-object tags authenticate each object's
+\emph{contents}; they say nothing about \emph{which} objects are present
+or how they refer to one another. An attacker who cannot forge a single
+tag can still delete an object, duplicate one, reorder the page tree,
+or---as in our attack---insert an entirely new \emph{unencrypted}
+object. The evil title page requires no forgery at all, because nothing
+authenticates the fact that it was not there before.
+
+So we add a coarse-grained layer: a single MAC over the structure of the
+whole document---which objects it contains and how they reference each
+other---under a key derived from the file encryption key. This is what
+detects the inserted title page. Note that the two layers are
+complementary rather than redundant. The structural MAC alone would
+force the reader back to hashing the entire file before rendering
+anything; the per-object tags alone would miss the attack entirely.
+
+This is, in outline, the design that the PDF standard eventually
+adopted, but as optional extensions, so unauthenticated encryption
+remains legal and the attack is still prevented largely by patched
+readers that refuse to submit forms or open URLs from a document without
+the user's consent.
 
 \section{Stream Encryption: Transport Layer Security
 (TLS)}\label{stream-encryption-transport-layer-security-tls}
@@ -6524,6 +6563,16 @@ however, has a much more complicated set of goals:
   \textbf{Protection against key-compromise impersonation:} If an
   attacker steals a client's secret key, the attacker should not be able
   to impersonate other servers to the client.
+
+  \marginnote{\begin{footnotesize}
+
+  This is subtler than it looks, and we return to it below. Stealing the
+  client's key obviously lets the attacker impersonate \emph{the client}
+  to others; that much is unavoidable. The requirement runs the other
+  way: it must not also let the attacker impersonate \emph{everyone
+  else} to the client.
+
+  \end{footnotesize}}
 \item
   \textbf{Protection of endpoint identities:} The public keys of the two
   parties should never flow over the wire in the clear. For example, if
@@ -6533,7 +6582,43 @@ however, has a much more complicated set of goals:
   hosted on Akamai or Cloudflare.
 \end{itemize}
 
-\subsection{TLS Handshake}\label{tls-handshake}
+\textbf{Key-compromise impersonation.} Suppose the two parties
+authenticated each other using \emph{static} Diffie-Hellman keys: the
+client holds \(a\) with \(A = g^a\), the server holds \(b\) with
+\(B = g^b\), and the session key is \(k = H(g^{ab})\). Authentication
+here is implicit---only the two genuine parties can compute \(k\). Now
+suppose an attacker steals the client's key \(a\). For \emph{any}
+server, with public key \(B\), the attacker can compute \[
+  g^{ab} = B^{a},
+\] using only the stolen key and the server's public key. It can
+therefore impersonate every server on the Internet to this one client,
+without attacking any of those servers. The problem is that the shared
+secret is symmetric in the two long-term keys, so holding either one is
+as good as holding the other.
+
+Signing fixes this. If the server authenticates by signing the handshake
+transcript, as in Section~\ref{sec-tls-handshake}, an attacker holding
+\(a\) still cannot produce that signature: authentication becomes
+one-directional, and the server proves possession of something the
+client never had.
+
+\marginnote{\begin{footnotesize}
+
+Note that this is the same design choice described above. Using
+long-term secrets \emph{only} for signing, and ephemeral keys for key
+exchange, buys forward secrecy and key-compromise-impersonation
+resistance together---one decision, two properties.
+
+\end{footnotesize}}
+
+TLS 1.2 permitted static Diffie-Hellman and static RSA, and practical
+attacks of this kind were demonstrated against real browsers
+(\citeproc{ref-kci2015}{Hlauschek et al. 2015}). TLS 1.3 removes those
+modes entirely: every handshake uses ephemeral key exchange and a
+signature over the transcript, so the property follows from the shape of
+the protocol rather than from configuring it correctly.
+
+\subsection{TLS Handshake}\label{sec-tls-handshake}
 
 The TLS handshake is very carefully designed to achieve these
 properties. A grossly simplified version looks something like the
@@ -6617,6 +6702,77 @@ This simplified toy version of the TLS handshake does not provide many
 of the features that the real TLS handshake provides. But it should give
 you a flavor of what the real handshake looks like.
 
+\subsection{Ephemeral keys, forward secrecy, and transcript
+signing}\label{sec-tls-ephemeral}
+
+Three design choices do most of the work in the handshake above. We
+describe them at a high level here; the real protocol is considerably
+more involved.
+
+\textbf{Ephemeral keys.} The Diffie-Hellman keys exchanged in steps 2
+and 3 are \emph{ephemeral}: each party runs the ordinary key-generation
+algorithm of the Diffie-Hellman key exchange lecture afresh for every
+connection, sampling \(x \getsr
+\{1, \dots, q\}\) and sending \(g^x\). These keys have nothing to do
+with the server's long-term signing key \(\sk_\text{MIT}\). Note that
+the client must generate and send its share before it has heard anything
+from the server, so it guesses which group the server supports; if it
+guesses wrong, the server says so and the client generates a new keypair
+for the group the server names.
+
+\marginnote{\begin{footnotesize}
+
+Both parties then compute the shared secret \(g^{xy}\), but neither uses
+it as a key directly. The secret is passed through a hash function---in
+TLS, a key-derivation function---to produce the encryption and
+authentication keys for the rest of the connection. The derivation also
+mixes in a hash of every handshake message sent so far, so the two
+parties end up with the same keys only if they saw the same
+conversation.
+
+\end{footnotesize}}
+
+\textbf{Forward secrecy.} When the handshake completes, both parties
+\emph{delete} their ephemeral secrets \(x\) and \(y\). This is what
+gives forward secrecy: an attacker who records the encrypted traffic
+today and compromises the server tomorrow finds nothing on the server
+that decrypts the recording, because the only secret that could have
+done so no longer exists. The long-term key \(\sk_\text{MIT}\) is of no
+help, since it was never used to encrypt anything.
+
+\textbf{Signing the transcript.} How, then, does the client know it ran
+the key exchange with \texttt{mit.edu} and not with an in-network
+attacker? The ephemeral public keys are unauthenticated when they are
+sent, so the server authenticates them \emph{after the fact}: in step 5
+it signs a hash of the entire handshake transcript---every message
+exchanged so far, including both ephemeral public keys, the nonces, and
+the negotiated ciphersuite---under \(\sk_\text{MIT}\), and sends that
+signature together with its certificate.
+
+\marginnote{\begin{footnotesize}
+
+Signing the whole transcript, rather than just the server's own
+ephemeral key, is what makes the other handshake properties fall out. An
+attacker who tampered with any earlier message---say, to force a
+downgrade to an older version of TLS---changes the transcript, so the
+signature no longer verifies. And because the signature is itself sent
+\emph{encrypted} under keys derived from \(g^{xy}\), the server's
+certificate never travels in the clear, which is what protects the
+endpoint identities.
+
+\end{footnotesize}}
+
+The client checks the certificate against its trusted certificate
+authorities and checks the signature against its own record of the
+messages. If both pass, the client knows that the party on the other end
+of this particular key exchange holds \(\sk_\text{MIT}\).
+
+Observe that \(\sk_\text{MIT}\) is used only to \emph{sign}, never to
+encrypt or to derive keys. This single choice is what buys both forward
+secrecy and resistance to key-compromise impersonation: an attacker who
+steals a long-term key can sign messages from that point on, but cannot
+read past traffic and cannot impersonate anyone else.
+
 \section{Properties that TLS does not
 provide}\label{properties-that-tls-does-not-provide}
 
@@ -6647,9 +6803,31 @@ happens. For example, the install script might consist of a single
 function definition that is called at the very end of the function.
 
 \textbf{Plaintext Length Obfuscation.} As we have discussed, encryption
-reveals exactly the length of the plaintext. If there is data that is
-not encrypted that is then included inside the encrypted data as well,
-this can cause a vulnerability---see the CRIME attack.
+reveals exactly the length of the plaintext. This becomes dangerous when
+attacker-controlled data and secret data are compressed together
+\emph{before} being encrypted, since the compressed length then depends
+on the \emph{content} of the secret. This is the CRIME attack
+(\citeproc{ref-crime}{Rizzo and Duong 2012}), which recovered TLS
+session cookies one character at a time.
+
+\marginnote{\begin{footnotesize}
+
+The attacker makes the victim's browser issue requests whose path it
+controls, so that the guess and the secret cookie land in the same
+compression window. A correct guess compresses to a back-reference and
+the ciphertext is one byte shorter; a wrong guess is not. Reading off
+the length turns a \(256^{16}\) search into a \(16 \times 256\) one.
+Note that the cipher is never broken---the entire leak is in the length,
+which is exactly what our CPA security definition declines to protect
+when it requires \(\abs{m_0} = \abs{m_1}\).
+
+\end{footnotesize}}
+
+TLS compression was removed in response, but the follow-up attack BREACH
+(\citeproc{ref-breach}{Gluck et al. 2013}) applies the same idea to HTTP
+response compression, which cannot simply be turned off; defending
+against it requires application-level measures such as not reflecting
+user input into responses that contain secrets.
 
 \chapter{Open Questions in
 Encryption}\label{open-questions-in-encryption}
@@ -11340,6 +11518,10 @@ Duong, Thai, and Juliano Rizzo. 2009. \emph{{Flickr's} {API} Signature
 Forgery Vulnerability}.
 \href{https://vnhacker.blogspot.com/2009/09/flickrs-api-signature-forgery.html}{Https://vnhacker.blogspot.com/2009/09/flickrs-api-signature-forgery.html}.
 
+\bibitem[\citeproctext]{ref-breach}
+Gluck, Yoel, Neal Harris, and Angelo Prado. 2013. {``{BREACH}: Reviving
+the {CRIME} Attack.''} \emph{Black Hat USA}.
+
 \bibitem[\citeproctext]{ref-HILL99}
 Hastad, J., R. Impagliazzo, L. A. Levin, and M. Luby. 1999. {``A
 Pseudorandom Generator from Any One-Way Function.''} \emph{SIAM Journal
@@ -11349,6 +11531,11 @@ on Computing} 28 (4): 1364--96.
 Hill, Mark D., Jon Masters, Parthasarathy Ranganathan, Paul Turner, and
 John L. Hennessy. 2019. {``On the {Spectre} and {Meltdown} Processor
 Security Vulnerabilities.''} \emph{IEEE Micro} 39 (2): 9--19.
+
+\bibitem[\citeproctext]{ref-kci2015}
+Hlauschek, Clemens, Markus Gruber, Florian Fankhauser, and Christian
+Schanes. 2015. {``Prying Open {Pandora's} Box: {KCI} Attacks Against
+{TLS}.''} \emph{USENIX Workshop on Offensive Technologies (WOOT)}.
 
 \bibitem[\citeproctext]{ref-honan}
 Honan, Mat. 2012. {``How {Apple} and {Amazon} Security Flaws Led to My
@@ -11399,6 +11586,10 @@ of Widely Used {RSA} Moduli.''} \emph{CCS}.
 Rivest, Ronald L., Adi Shamir, and Leonard Adleman. 1978. {``A Method
 for Obtaining Digital Signatures and Public-Key Cryptosystems.''}
 \emph{Communications of the ACM} 21 (2): 120--26.
+
+\bibitem[\citeproctext]{ref-crime}
+Rizzo, Juliano, and Thai Duong. 2012. \emph{The {CRIME} Attack}.
+Presented at the ekoparty Security Conference.
 
 \bibitem[\citeproctext]{ref-thompson1984reflections}
 Thompson, Ken. 1984. {``Reflections on Trusting Trust.''}
