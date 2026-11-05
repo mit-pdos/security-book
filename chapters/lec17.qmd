@@ -1,98 +1,287 @@
-# Hardware Security
+# Side Channel Attacks and Spectre
 
 {{< include /macros/_macros.qmd >}}
 
-So far while discussing platform security, we have considered only our software. However, software must run on some hardware, and the security of this hardware is similarly vital---if an attacker can undermine the security of our hardware, it does not matter how strong our software security is. Luckily, hardware is typically much more difficult to attack than software, but powerful attacks are still possible.
+Up to this point, we have mostly reasoned about the security of a system by looking at its *intended* interfaces: the inputs that an attacker can send to a program and the outputs that the program returns. Real systems also leak information through channels that their designers never intended to be outputs at all: how long an operation takes, how much power it draws, which parts of the processor's cache it touches, the sounds it makes, and so on. These unintended outputs are called *side channels*. [We already saw a few side channels in the chapter on isolation, when we discussed the limits of isolation.]{.aside}
 
-As a running example for this chapter, consider the example of a certificate authority that signs certificates given that some policy is met.
+Historically, the side channel that people worried about most was electromagnetic emanations: electronic equipment radiates signals that an eavesdropper with an antenna can sometimes pick up and decode from a distance.[@nsa:tempest] [The U.S. government's program to study and shield against these emanations went by the code name TEMPEST.]{.aside} The broader lesson is that a system may need to worry about many unexpected ways in which information can be revealed.
 
-::: {.column-margin}
-An equivalent example is a cryptocurrency wallet---transactions in the cryptocurrency are authorized by a signature over a transaction message.
-:::
+**What can leak.** Researchers have studied many side channels as a means to extract cryptographic keys, including:
 
-This server will accept requests and respond with a signature over that request if some policy is met. For example, an MIT CA might enforce a policy like "I will sign only certificates for `*.mit.edu` domains". For this CA server, we can achieve some nice security properties:
+-   how long it takes to decrypt a message,
 
-- We can prove the security of the signature scheme used under concrete assumptions such as the hardness of discrete log.
-- We can verify that the cryptography implementation faithfully implements the signature algorithm on some ideal hardware model.
+-   how decryption affects shared hardware resources (the cache, the TLB, the branch predictor), and
 
-In order to actually be used, however, we must first buy a computer, load the code onto it, and run it (likely on a machine running other software). This process is outside of the nice security properties with achieved about our CA program. In cryptography and in software, we are able to develop clean characterizations of the power of the attacker. In cryptography, we assume that our adversaries are bounded by probabilistic polynomial time. In software, we can model our attacker as choosing arbitrary inputs to our software and accurately capture an attacker's power. Once we consider the hardware, however, it becomes much more difficult to meaningfully define the attacker's power.
+-   physical emissions from the CPU itself (radio-frequency signals, sound, power consumption, etc.).
 
-When we consider the real hardware that the system is running on, there are many attacks that we must consider.
+**Side channels beyond cryptography.** Many side-channel attacks have nothing to do with cryptography:
 
-## Hardware Bug
+-   The time a password check takes may reveal *which* character of a password guess was incorrect (see the Tenex attack in @sec-sc-tenex).
 
-Much of what we have discussed so far has been cryptography schemes that rely on trusted parties knowing some randomness that the adversary does not know. We have assumed that we have some source of "true" randomness to use, for example, as a seed for a PRF. When actually implementing cryptographic algorithms in a computer, we need to actually materialize this "true" randomness. However, it is not clear where this randomness should come from: computers are designed specifically to behave as they are instructed by the programs they run. Common solutions are to measure statistics about the environment that should be hard for an adversary to predict. For example, devices may use combinations of:
+-   The time a social network takes to answer a query may reveal how many friends you have in common with some other user.
 
-- Keypress timings
-- Packet timings
-- Clock
-- Temperature sensor
+-   The time a browser takes to load a page reveals whether the page was already in the browser's cache---and thus whether the user visited that page recently.
 
-All of these require "accumulating" randomness from the environment. A common hardware bug on embedded devices is to generate keys when the randomness source has not accumulated enough random measurements from the environment. For example, if a network card generates a cryptographic key right after boot, this key may be predictable if an attacker is able to accurately guess at the values of the randomness source.
+-   The sound of a dot-matrix printer is enough to recover the text it prints.[@backes:printers]
 
-To help with this, many devices include specialized hardware that uses some special circuit to generate randomness by measuring randomness inherent to the universe.. Of course, developers must then use this randomness---a common error is to use insufficient randomness, such as the time, instead of this hardware randomness.
+-   The sizes and timing of network packets can reveal a lot, even when the traffic is encrypted.
 
-::: {.column-margin}
-On Intel CPUs, this takes the form of the `RDRAND` instruction
-:::
+The last example deserves a closer look, since encryption is often treated as a cure-all. Encryption hides the contents of a message, but the ciphertext is roughly the same size as the plaintext, and an eavesdropper still sees when each message is sent. Researchers have shown that one can infer a great deal about TLS and VPN traffic from sizes and timing alone. The CRIME attack,[@crime] which we discussed earlier in the term, is a related problem. [In CRIME, compressing data before encrypting it makes the ciphertext length depend on the plaintext contents.]{.aside}
 
-## Attacks without Physical Access
+**Example: Inferring stock holdings.** At one point, Fidelity let customers manage their stocks through a TLS-protected website. The site displayed a pie-chart image for each stock in the user's portfolio, so the user's browser fetched one image per stock. An attacker can download every possible pie-chart image ahead of time and record its size. Then, by watching the sizes of the (encrypted) transfers between the user's browser and the server, the attacker can tell which stocks the user holds.
 
-Perhaps the most concerning attacks are those that do not require physical access to a machine.
+Even with all of these examples, attacks that recover passwords or cryptographic keys are usually the most damaging, so we focus on them for the rest of this chapter.
 
-### Cache Timing Attacks
+# Timing Attack on Password Checking: Tenex {#sec-sc-tenex}
 
-One major goal of operating systems is to provide isolation between processes. Even if an attacker is able to run some software on the same machine as our signing process, we would like to guarantee that an attacker can not read, for example, the signing key used by our signing process. However, the attacker and victim code both run on the same CPU, and the victim may leave traces of secrets in the state of the CPU.
+A famous early timing attack targeted password checking in the Tenex operating system. Suppose that the kernel provides a system call that checks a user's password. The kernel compares the guess against the stored password one byte at a time and returns an error as soon as it finds a mismatch: [Tenex stored passwords in plaintext, which is a problem in its own right, as we saw when we discussed password storage.]{.aside}
 
-For example, consider that our signing process runs and, depending on some secret value, either loads the value at memory address $A$ or does not. If the victim loads this address,the CPU will copy the value into the cache to speed up future accesses to the value. An attacker process that runs next can try to access this same memory address and measure how long it takes to read the value. If the victim read that value, the access will be fast since it comes from the cache, but if not, the data will have to come from the much slower main memory. From the difference in this timing, the attacker can learn about the victim's access pattern, which may reveal data about the victim's secret.
+```text
+check_password(guess):
+    for i in 0 .. len(password)-1:
+        if guess[i] != password[i]:
+            return ERROR
+    return OK
+```
 
-::: {.column-margin}
-Because of attacks like this and others, it is important to write secure code such that it does not branch on secret values.
-:::
+The attacker exploits the fact that the kernel reads the guess out of the attacker's own memory, and that the attacker controls where that memory lives:
 
-::: {.column-margin}
-This may seem like an unlikely attack since both the victim and attacker must have access to the same memory location, which process-level isolation should prevent. However, operating systems perform something called deduplication that can be cleverly taken advantage of to achieve this: if the victim process uses OpenSSL, the attacker process can also use OpenSSL. The operating system will see that both processes are linking the same library, and may map a section of virtual memory for each process to the same physical memory.
-:::
+1.  The attacker places the guess so that its first byte is the last byte of one memory page and the rest of the guess is on the next page.
 
-### Rowhammer
+2.  The attacker arranges for the second page to be swapped out to disk. (Or the attacker simply unmaps the second page entirely, using the equivalent of `munmap`.)
 
-Data in a computers memory is stored in what is effectively a grid of capacitors. These capacitors do not store values indefinitely, and so their values must be refreshed every so often (commonly every 64 milliseconds). Reading a chunk of memory drains the corresponding capacitors a bit, and they must then be rewritten. Memory is read one row f this grid at a time. Reading a row drains the corresponding capacitors, requiring them to be rewritten. This rewriting involves voltage fluctuations, and since modern memory is so dense, these voltage fluctuations can cause neighboring rows to discharge more quickly that the refresh interval is equipped to handle. Surprisingly, reading a single row repeatedly can cause bits in an adjacent row to flip.
+3.  The attacker calls the password-checking system call and measures how long it takes to return an error.
 
-An attacker could take advantage of this by "hammering" a memory location, causing a bit to flip in memory that belongs to another process or to the operating system. In some cases, this was enough to allow the attacker to learn a secret or bypass isolation, etc.
+If the call takes a long time, the kernel had to read the second page in from disk. (If the page was unmapped and the call crashes, the kernel tried to read the second page.) Either way, the kernel only touches the second page if the first byte of the guess was correct! The attacker then shifts the guess one byte to the left and repeats the process to learn the second byte, and so on.
 
-## Physical Attacks
+> With this attack, an attacker can guess an $N$-character password in $256 \cdot N$ tries, rather than $256^N$.
 
-If an attacker has physical access to a device, an entirely new class of attacks becomes possible. They can measure the device, introduce faults to the device, and more.
+[Source code for a password-checking routine similar to the original is preserved in the Xerox Alto archives at the Computer History Museum: the `chkpsw` routine calls `stcmp` to compare strings byte by byte.]{.aside}
 
-### Probing Attacks
+The fix is to compare passwords in a way whose running time and memory accesses do not depend on where the first mismatch occurs---or, better, to store and compare password hashes.
 
-An attacker with physical access to a device can measure many things about the device's behavior that a remote attacker could not. For example:
+# Timing Attacks on Cryptography {#sec-sc-crypto}
 
-- Place probes on the pins of a chip
-- Measure power consumption of a chip and watch for patterns
-- Measure optical emissions of a chip with an electron microscope
-- Measure RF emissions from a chip
-- Monitor the blinking light on an internet router
+The same basic idea---learn a secret a little bit at a time by measuring how long an operation takes---applies to cryptographic implementations. The main difference is that the signal is much noisier, so attacks require many more measurements and more careful statistics.
 
-The information that an attacker can learn from attacks like this may be limited, but even very slow information leakage can be enough to leak a key in a relatively short amount of time. Protecting against these types of attacks is difficult since the attacker can do such a broad range of things. However, if we make certain assumptions about the attacker's power, we can achieve principled solutions.
+## Remote timing attack on RSA
 
-**Defense against Probing Attacks.** One assumption that may be reasonable to make is that an attacker can probe at most $t$ wires of a circuit. By using techniques like secure multiparty communication, it is possible to build a circuit that implements something like a signature scheme, but that does so without leaking anything about the secret given this assumption.
+Brumley and Boneh showed that timing attacks on RSA are practical even across a network.[@brumley:remote-timing] In their setting, the victim is an Apache HTTPS web server using OpenSSL, which holds an RSA private key in memory. The attacker's goal is to extract that private key.
 
-### Fault Attacks
+The attacker controls a client machine on the same campus network as the server (Stanford's, in the original experiment). The attacker sends the server specially constructed ciphertexts as part of the TLS handshake. The server decrypts each ciphertext, finds garbage padding, and returns an error. The client measures how long it takes to receive the error message, and uses these response times to guess the bits of $q$, one of the two secret primes $p$ and $q$ that make up the RSA secret key.
 
-An attacker can also introduce faults that the system was not designed to handle. For example, they can point a heat gun or a laser at the chip, hoping to cause some bit flips. If they are successful, these bit flips may leak a secret key or corrupt a kernel data structure, allowing the attacker to take over the system.
+The overall response time is on the order of 5 milliseconds, while the time difference that the attack exploits can be around 10 microseconds. [The timing variations come from optimizations that make RSA efficient: OpenSSL switches between Karatsuba and ordinary multiplication depending on the sizes of the operands, and Montgomery multiplication occasionally needs an "extra reduction" step. Both depend on the relationship between the ciphertext and the secret prime.]{.aside} About one million queries were enough to recover the 512-bit primes $p$ and $q$ of a 1024-bit RSA key. In fact, the attacker only needs to learn the top 256 bits of $q$; a separate algorithm (due to Coppersmith) can then factor the modulus.
 
-::: {.column-margin}
-Designers of satellite systems have to think about similar attacks, but in their case the attacker is the sun! Cosmic rays carry enough energy to flip bits of CPU registers or memory.
-:::
+Countermeasures are needed, such as *RSA blinding*: the server multiplies the ciphertext by a random value $r^e$ before decrypting and divides out $r$ afterwards, so that the time the decryption takes is uncorrelated with the ciphertext that the attacker chose.
 
-### Supply Chain Attacks
+**How worried should we be about RSA timing attacks?**
 
-When we buy an device, we assume that the hardware inside is not working against us. However, there is a long chain of steps that happens before the device gets to us---it is built in the factory, packaged, mailed across the world to a retailer, stored in a warehouse, packaged and mailed again, and so on. An attacker that has control over any of these steps could intercept the device on its way to you and modify it somehow. For example, they could:
+-   Developing an exploit is relatively tricky, but this is a one-time cost: once someone writes it, anyone can run it.
 
-- Modify the randomness source to something predictable
-- Preload keys that the attacker knows
-- Add extra input/output interfaces
-- Add or enable management interfaces
+-   A server operator could notice an attack, since it requires a large number of connection requests. This might not be so easy on a busy web-server cluster, though.
 
-There are no great solutions to defend against this---inspecting the chips is impossible since they are so small, building a device yourself is much too hard, and so on. One solution that can improve the protection is to build a system out of $n$ identical devices and use a strategy like secure multiparty computation to protect against cases where at most $n-1$ of these devices is compromised by a supply chain attacker.
+-   The attacker has to be close by in terms of the network. This is not much of an obstacle: the attacker can average over more queries, co-locate a machine nearby (e.g., in the same cloud data center), run the attack from a nearby bot or browser, and so on.
+
+-   The attacker may need to know the exact version of OpenSSL, its optimization flags, and so on. Is it a good idea to rely on such a defense? How big of an impediment is it really?
+
+-   If an attacker does mount the attack, the effects are quite bad: the server's private key leaks.
+
+## Cache timing attacks
+
+A processor's cache is shared by all of the processes that run on it. When one process accesses memory, it brings that memory into the cache, which necessarily evicts something else from the cache. An attacker who can run code on the same machine can observe these evictions and learn about the victim's memory-access pattern.
+
+For example, a fast implementation of modular exponentiation (for RSA or Diffie-Hellman) uses a *sliding window*: it precomputes a table of small multiples and, as it walks through the bits of the secret exponent $d$, it looks up different table entries depending on the bits of $d$. Accessing one of these entries brings it into the cache. A malicious process can fill the cache with a large array of its own, let the victim run, and then check which parts of its array were evicted by timing accesses to them. The offsets that were evicted reveal which table entries the victim used, and thus parts of the secret exponent.
+
+Similar attacks work against table-based implementations of AES. Tromer, Osvik, and Shamir used them to recover AES keys from `dm-crypt`, the Linux disk-encryption subsystem, by running an unprivileged process on the same machine.[@tromer:cache-aes]
+
+Cache attacks are particularly worrisome in the presence of *mobile code*: WebAssembly modules, JavaScript, etc. that run on your laptop or phone. Mobile code is untrusted and may come from an attacker. It runs inside a sandbox, but the sandbox may still allow it to measure side channels.
+
+# Spectre and Meltdown {#sec-sc-spectre}
+
+In 2018, researchers disclosed a family of attacks known as Spectre and Meltdown.[@kocher:spectre; @lipp:meltdown; @hill:spectre-meltdown] Cache timing attacks had been known for years, so why did these attacks cause such an uproar?
+
+-   **They changed the threat model.** Before these attacks, most system designers assumed side channels away. Spectre and Meltdown showed that micro-architectural side channels are a real, practical threat. [On Linux, you can see which of these attacks your processor is vulnerable to, and which mitigations are enabled, by running: `grep . /sys/devices/system/cpu/vulnerabilities/*`]{.aside}
+
+-   **They exploit speculative execution**, a standard processor feature that is essential for high performance.
+
+-   **The attacker has some control over speculative execution.** This is a big difference from earlier cache timing attacks, in which the attacker could only passively observe the victim's (legitimate) memory accesses. Here the attacker can steer the victim into accessing memory that the victim's program never accesses in a correct execution.
+
+-   **Speculative execution has observable side effects.** In particular, it brings values into the cache, even when the speculation turns out to be wrong.
+
+-   **They break process isolation.** The attacker probes the cache to read out the secrets, and this side channel has high bandwidth.
+
+-   **They are architectural.** The underlying problem is a consequence of how modern processors are designed, so it is not easy to fix. There are several workarounds, each with costs.
+
+-   **They can be exploited remotely**, through JavaScript, WebAssembly, and other mobile code.
+
+## Processor features exploited
+
+Both of the features that these attacks exploit exist to make processors fast.
+
+**Speculative execution.** Consider code with a branch:
+
+```c
+if (cond) {
+    ...
+}
+```
+
+Computing `cond` may take a long time---for example, if it depends on a value that must be loaded from main memory. Rather than wait, the processor *guesses* which way the branch will go (using a *branch predictor* that learns from the branch's past behavior) and speculatively executes the instructions on the predicted path. On today's processors, the processor may speculatively execute hundreds of instructions before it learns whether its guess was correct. If the guess was wrong, the processor cleans up its architectural state---registers, etc.---and proceeds down the correct path, as if the speculatively executed instructions never ran.
+
+**Caching.** Processors have several levels of caches. The last-level cache is shared between all of the cores on the chip. On failed speculation, the processor does *not* undo the effects of the speculative instructions on the cache: data that those instructions loaded stays in the cache.
+
+## Attack variants
+
+There are many variants of these attacks, including:
+
+1.  Bounds-check bypass (Spectre, variant 1).
+
+2.  Branch-target injection (Spectre, variant 2).
+
+3.  Data access that bypasses protection checks (Meltdown, variant 3).
+
+4.  ...and any other micro-architectural side channel.
+
+The list of known attacks is surprisingly long.[@behrens:mitigations] We will start with variant 1, then discuss variants 2 and 3.
+
+## Spectre variant 1: Bounds-check bypass {#sec-sc-v1}
+
+**Outline of the exploit.** Suppose that the kernel holds a secret byte---for example, the random offset that it uses for address-space layout randomization. Suppose also that the kernel contains a code fragment (a *gadget*) like the following, where `x` is a value that the attacker supplies, say as an argument to a system call:
+
+```c
+if (x < array1_size) {
+    v = array1[x];
+    y = array2[v * 4096];
+}
+```
+
+[We multiply `v` by 4096 so that each possible value of `v` maps to a different page, and thus a different cache line. The exact constant does not matter much, as long as different values land in different cache lines; the proof of concept below uses 512.]{.aside} The bounds check means that, architecturally, this code never reads outside `array1`. But the attacker can make it do so speculatively:
+
+1.  **Train the branch predictor.** The attacker calls the gadget many times with in-bounds values of `x`, so that the branch predictor learns that the `if` branch is usually taken.
+
+2.  **Set up the cache.** The attacker arranges for `array1_size` to *not* be in the cache, so that the bounds check takes a long time to resolve and the processor speculates. The attacker arranges for `array1` (and the secret) to be in the cache, so that the read `array1[x]` completes quickly and there is time to start the next instruction before the speculation is squashed. Finally, the attacker makes sure that no part of `array2` is in the cache.
+
+3.  **Trigger the gadget.** The attacker calls the gadget with an out-of-bounds `x` such that `array1 + x` is the address of the secret byte. The processor speculatively reads the secret byte into `v` and then speculatively reads `array2[v * 4096]`, which brings that one line of `array2` into the cache. The attacker cannot read `v` directly. When the bounds check finally resolves, the processor realizes that it mispredicted and squashes its internal state. But it does not remove `array2[v * 4096]` from the cache, which lives outside the processor core.
+
+4.  **Probe the cache.** The attacker measures the time to read `array2[0 * 4096]`, `array2[1 * 4096]`, ..., `array2[255 * 4096]`. If one of them is fast, the attacker knows the value of `v`.
+
+## A concrete example
+
+Appendix A of the Spectre paper[@kocher:spectre] contains a short C program that demonstrates variant 1. It is illustrative, not a real attack: the victim code and attacker code live in the same address space. The program has the following parts:
+
+**Victim code.** The victim has a gadget like the one above, a secret string, and the arrays `array1` and `array2`. [The victim's global variables include some unused padding (`unused1` and `unused2`). The padding forces `array1_size` to live in a different cache line from `array1`, so that the attacker can flush `array1_size` from the cache while `array1` stays cached.]{.aside}
+
+**Main function.** The main function tries to read the secret one byte at a time by calling `readMemoryByte` with `malicious_x`, the out-of-bounds offset from `array1` to the secret byte (the attacker-supplied `x` from @sec-sc-v1). `readMemoryByte` uses cache measurements to determine the byte.
+
+**The `readMemoryByte` function.** This function does the following, repeatedly:
+
+1.  **Flush `array2` from the cache**, using the `clflush` instruction on each of the 256 lines of `array2` that the gadget might touch---one for each of the 256 possible values of a byte. Consecutive values are 512 bytes apart in `array2`, so that each lands in its own cache line and the processor's hardware prefetcher is less likely to pull in neighboring values.
+
+2.  **Train the branch predictor and invoke the gadget.** The function calls the victim's gadget several times with an in-bounds `training_x`, then once with `malicious_x` (flushing `array1_size` before each call). [The code computes `x` with a convoluted sequence of bit operations rather than an `if` statement. This avoids introducing a branch into the attacker's own loop, which could confuse the branch predictor that the attacker is trying to train.]{.aside}
+
+3.  **Time every possible value.** The function times a read of each of the 256 candidate lines of `array2`, probing them in a scrambled order (again to defeat the prefetcher), and counts a cache hit for any line that loads quickly.
+
+Any single trial is noisy: other activity on the machine may evict lines or bring them into the cache. So `readMemoryByte` repeats this procedure up to 1,000 times and picks the value with the most hits. It stops early once one value clearly has more hits than any other.
+
+**Bandwidth.** This side channel leaks on the order of 10 KB/s.
+
+## Making the attack real
+
+To mount the attack against a real victim, rather than against code in its own address space, the attacker must:
+
+-   find a suitable gadget in the victim process (or kernel),
+
+-   be able to access `array2`, so that it can time reads to it,
+
+-   evict `array1_size` from the cache in the victim process,
+
+-   evict `array2` from the cache in the victim process, and
+
+-   train the branch predictor in the victim process.
+
+**Stealing a secret from a victim process on Windows.** The Spectre paper's Windows attack exploits dynamically loaded libraries (DLLs). Common DLLs are mapped into every process's address space, backed by the same physical memory. So any process can read the DLL's memory and flush it from the cache with `clflush`---and the attacker can even write to it (copy-on-write gives the attacker its own private copy, but this is enough to train the branch predictor). The shared DLL memory plays the role of `array2`.
+
+**Stealing a secret from the Linux kernel.** Google Project Zero's attack against the Linux kernel[@horn:projectzero] exploits eBPF, a mechanism that lets user-space programs load small programs (e.g., packet filters) into the kernel. The kernel checks eBPF programs to make sure that they cannot access memory out of bounds, and then runs them. The attack uses two eBPF filters:
+
+1.  one to train the branch predictor and to find the kernel address of an array that serves as `array2`, and
+
+2.  one that contains the gadget and leaks secret data.
+
+The attacker then measures the cache state of `array2` from user space. This is possible because the kernel's address space includes a mapping of all physical memory, including the user's pages: an array in user memory also has a kernel address, so the gadget in the kernel and the attacker's timing code in user space can touch the same cache lines.
+
+## Discussion
+
+-   The attack breaks process isolation, which is the foundation that most of the system defenses in this course build on. It is a serious attack!
+
+-   The attacker can be remote: the attack can be carried out from JavaScript running in a web page.
+
+-   Any piece of micro-architectural state may be a side channel: the branch predictor, the write buffer, the cache-coherence directory, and so on.
+
+## Spectre variant 2: Branch-target injection
+
+Variant 2 exploits speculation on *indirect* branches---jumps and calls through a function pointer. Consider kernel code like:
+
+```c
+if (x < array1_size) {
+    v = array1[x];
+    (*f)();   // f reads memory at an address that depends on v
+}
+```
+
+When the processor reaches an indirect call, it may not yet know the value of `f`, so it predicts the call's target and speculatively executes the code there. Fast indirect calls are important for object-oriented code, which makes heavy use of virtual method calls.
+
+The attacker chooses a convenient `f`---a fragment of existing kernel code that reads memory depending on `v`---and trains the branch predictor so that the processor speculatively jumps to it. This is much like a return-to-libc attack: the attacker does not inject code, but redirects (speculative) execution to code that already exists. The attack requires reverse-engineering the processor's branch predictor, in order to know how to train it to predict the chosen target.
+
+## Meltdown (variant 3): Bypassing protection checks
+
+Meltdown lets user-space code read kernel memory directly.[@lipp:meltdown] The core of the attack is a few user-space instructions:
+
+```nasm
+mov  al, byte [some_kernel_address]
+shl  rax, 12
+mov  rbx, qword [some_user_address + rax]
+```
+
+[The `shl` (shift-left by 12) multiplies the secret byte by 4096, so that each possible value touches a different page of the attacker's user-space array.]{.aside} Architecturally, the first instruction faults: user code may not read kernel memory. But the first instruction is implemented as several micro-operations, including a permission check and a load. The processor executes instructions out of order, and some processors perform the load before the check has completed. The loaded value is forwarded to the following instructions, which speculatively use it to compute an address and load from it. When the check fails, the processor raises the fault and discards the results---the loaded value is never committed to a register---but the user-space address that depended on the secret is in the cache. The attacker then uses a Flush+Reload probe[@yarom:flush-reload] to determine which address is in the cache, and thus the secret byte.
+
+This works because the kernel and the user process share one address space. The kernel's memory is present in the user process's page table, marked as not accessible to user code. [Mapping the kernel into every process's address space makes system calls faster, since the processor does not have to switch page tables on each entry into and exit from the kernel.]{.aside}
+
+A fairly realistic attack using a Meltdown-style technique, called Foreshadow, stole secret keys from Intel SGX enclaves.[@vanbulck:foreshadow]
+
+# Mitigations {#sec-sc-mitigations}
+
+**Variant 1.**
+
+-   **Linux kernel:** Kernel developers use code analysis to find potentially vulnerable gadgets, and modify the code to constrain the index in the gadget even under speculation. The kernel provides helpers in `include/linux/nospec.h` for this purpose: [`array_index_nospec()` computes a mask from the comparison using arithmetic, rather than a branch, so that a mispredicted branch cannot make the processor use an out-of-bounds index.]{.aside}
+
+    ```c
+    if (index < ARRAY_SIZE) {
+        // array_index_nospec() blocks speculation
+        index = array_index_nospec(index, ARRAY_SIZE);
+        return array[index];
+    }
+    ```
+
+-   **Browsers:** JavaScript engines avoid generating vulnerable code sequences when they compile JavaScript and WebAssembly to machine code.
+
+**Variant 2.** The defenses are microcode updates and kernel patches, such as *retpoline* ("return trampoline"). A retpoline replaces each indirect jump with a sequence built around a `ret` instruction. The sequence contains an infinite loop that is never executed architecturally; any speculation lands in this harmless loop, which prevents the CPU from speculating on the target of the indirect jump. Retpolines slow down every indirect jump. Another approach ("optpoline") resolves indirect jumps at runtime and replaces them with direct jumps where possible.
+
+**Variant 3.** The defense is *kernel page-table isolation* (KPTI): the kernel uses two page tables, one for the kernel and one for user space. The user-space page table maps almost none of the kernel's memory, so there is nothing for a Meltdown attack to read. [KPTI was developed (under the name KAISER) before Meltdown was known, to protect kernel address-space layout randomization against other side channels.]{.aside}
+
+**Hardening browsers.** Since many attacks need a precise timer, browsers stopped giving web pages precise timing information.
+
+**Performance.** All of these mitigations have a performance cost, which varies across processor generations as vendors add hardware support for them.[@behrens:mitigations]
+
+**Other side effects of speculative execution.** The cache is not the only observable side effect of speculative execution. Speculatively executed instructions also affect power consumption, bus traffic, and more.
+
+# How to Stop Side Channels?
+
+There is no single answer, but there are several broad strategies:
+
+-   **Remove side channels.** For example, one could redesign processors so that speculative execution does not change the cache state until it is committed. But every shared resource could be a side channel, so it is hard to be sure that one has found them all.
+
+-   **Reduce shared resources when processing secret data.** For example, process confidential data on a separate core, with its own cache, etc. This requires refactoring software, which is not easy.
+
+-   **Measure channels and make them low bandwidth.** A channel that leaks a bit per hour is much harder to exploit than one that leaks 10 KB per second.
+
+**Further reading.** Percival[@percival:cache] and Yarom and Falkner[@yarom:flush-reload] describe early cache attacks that work across processes; Zhang et al.[@zhang:cross-vm] extend them across virtual machines in the cloud. The Ed25519 signature scheme[@bernstein:ed25519] is an example of a cryptosystem designed from the start to run in constant time.
