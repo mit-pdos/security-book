@@ -540,7 +540,7 @@ us to protect security even when software bugs arise.
 
 #### Find and Prevent Bugs at Development Time
 
-Techniques such as fuzzing can find bugs before they hit production
+Techniques such as fuzzing and AI can find bugs before they hit production
 systems.
 
 #### Catch and Mitigate Bugs at Runtime
@@ -556,8 +556,7 @@ language adds its own runtime bounds checking. Control-flow integrity
 (CFI) defends against code-injection attacks by ensuring that the program
 only follows legitimate control-flow paths, and taint tracking can catch
 injection attacks by following untrusted data as it flows through the
-program. We discuss several of these techniques in more detail in the next
-lecture.
+program. We discuss several of these techniques in more detail in subsequent chapters.
 
 #### Deploy Bug Fixes Quickly
 
